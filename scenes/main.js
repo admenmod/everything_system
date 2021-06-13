@@ -3,13 +3,8 @@ scenes.main = function() {
 	let cameraMoveObject = new CameraMoveObject(main.camera);
 	cvs.on('resize', e => netmap.size.set(cvs.size));
 	
-	G.print('public');
 	
 	
-//===============init===============//
-	this.init = function() {
-		// ...;
-	};
 	
 //===============updata===============//
 	this.updata = function(dt) {
@@ -28,9 +23,4 @@ scenes.main = function() {
 		main.ctx.clearRect(0, 0, cvs.width, cvs.height);
 		netmap.draw(main);
 	};	//==============================//
-	
-//===============exit===============//
-	this.exit = function() {
-		// ...;
-	};
 };
