@@ -20,7 +20,6 @@ cvs.loadFiles([], db).then(function() {
 
 //========== LoopGame ==========//
 function _updata(dt) {
-	touch.updata();
 	Scene.active_scene.updata(dt);
 	touch.onNull();
 	requestAnimationFrame(_updata);
