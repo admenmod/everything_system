@@ -24,12 +24,16 @@ scenes.main = function() {
 		let network = require('network');
 		
 		let signal = network.detectAccessPoint().find(i => i.sourceName === 'server');
-		
-		let connection = network.connect(signal);
-		
-		connection.on('accept', data => {
-			console.log('server > unit', data);
-		});
+		if(signal) {
+			let connection = network.connect(signal);
+			
+			connection.on('accept', data => {
+				console.log('server > unit', data);
+				
+				if(data === 'hi') ;
+				connection.send('hi');
+			});
+		};
 	};
 	
 	

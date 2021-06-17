@@ -1,16 +1,25 @@
 'use strict';
 let Code = new function() {
+	let delay = cb => new Promise(res => {
+		let t = setTimeout(() => {
+			clearTimeout(t);
+			res(cb());
+		}, 0);
+	});
+	
+	
 	let globalModules = {
 		network(self) {
-			let module = new EventEmitter();
-			
-			module.connect = signal => self.connectToAccessPoint(signal);
-			module.disconnect = () => self.disconnectToAccessPoint();
-			module.detectAccessPoint = () => self.detectAccessPoint();
-			
-			module.enableAccessPoint = () => self.enableAccessPoint();
-			module.disableAccessPoint = () => self.disableAccessPoint();
-			
+			let module = Object.assign(new EventEmitter(), {
+				connect: signal => self.connectToAccessPoint(signal),
+				disconnect: () => self.disconnectToAccessPoint(),
+				detectAccessPoint: () => self.detectAccessPoint(),
+				
+				enableAccessPoint: () => self.enableAccessPoint(),
+				disableAccessPoint: () => self.disableAccessPoint(),
+				
+				getConnectionList: () => [...self._connection.list]
+			});
 			
 			return module;
 		},
@@ -34,9 +43,7 @@ let Code = new function() {
 			this._signal = null;
 			this._cachModule = {};
 			
-			this._state = {
-				
-			};
+			this._state = {};
 			
 			this._connection = Object.assign(new EventEmitter(), {
 				status: 0,	// null, connect, distribute (0-2)
@@ -59,16 +66,17 @@ let Code = new function() {
 				require: module => module in this._cachModule ? this._cachModule[module] : this._cachModule[module] = globalModules[module](this),
 				
 				Vector2, vec2, VectorN, vecN, EventEmitter,
-				JSON,
+				console, Math, JSON,
 				Object, Array, Function, Number, String, BigInt, Symbol
 			};
+			this._api_environment.global = this._api_environment;
 			
 			this._mainProgram = codeFunction(p.mainProgram||Computer.defaultMainProgram, this._api_environment, 'main-'+p.name);
 		}
 		
 		connectToAccessPoint(signal) {
 			if(this._connection.status === 2) return;
-			if(this._connection.connection) this.disconnectToAccessPoint();
+			if(this._connection.status === 1 && this._connection.connection) this.disconnectToAccessPoint();
 			this._connection.status = 1;
 			
 			let connection = null;
@@ -76,7 +84,7 @@ let Code = new function() {
 			let plaggable = Object.assign(new EventEmitter(), {
 				sourceName: this.name,
 				sourceUUID: this.uuid,
-				send: data => this._connection.connection === connection && connection.emit('accept', data)
+				send: data => delay(() => this._connection.connection === connection && connection.emit('accept', data))
 			});
 			
 			connection = signal.connect(plaggable);
@@ -87,7 +95,7 @@ let Code = new function() {
 			return connection;
 		}
 		disconnectToAccessPoint() {
-			if(this._connection.status === 2) return;
+			if(this._connection.status !== 1) return;
 			this._connection.status = 0;
 			
 			this._connection.signal.disconnect();
@@ -95,7 +103,7 @@ let Code = new function() {
 			this._connection.signal = null;
 		}
 		detectAccessPoint() {
-			return G.eviroment.signals.map(i => Object.assign({}, i));
+			return G.environment.signals.map(i => Object.assign({}, i));
 		}
 		
 		enableAccessPoint() {
@@ -113,11 +121,11 @@ let Code = new function() {
 					let connection = Object.assign(new EventEmitter(), {
 						sourceName: this.name,
 						sourceUUID: this.uuid,
-						send: data => this._connection.status === 2 && this._connection.list.has(connection) && connection?.emit('accept', data) && this._connection.accessPoint.emit('accept', data, connection)
+						send: data => delay(() => this._connection.status === 2 && this._connection.list.has(plaggable) && (plaggable.emit('accept', data) || this._connection.accessPoint.emit('accept', data, connection)))
 					});
 					
-					this._connection.list.add(connection);
-					this._connection.accessPoint.emit('connect', connection);
+					this._connection.list.add(plaggable);
+					delay(() => this._connection.accessPoint.emit('connect', plaggable));
 					
 					return connection;
 				},
@@ -127,12 +135,16 @@ let Code = new function() {
 					this._connection.accessPoint.emit('disconnect', connection);
 				}
 			};
+			G.environment.signals.push(this._signal);
 			
 				
 			return this._connection.accessPoint;
 		}
 		disableAccessPoint() {
 			if(this._connection.status !== 2) return;
+			
+			let l = G.environment.signals.indexOf(this._signal);
+			G.environment.signals.splice(l, 1);
 			
 			this._connection.status = 0;
 			this._connection.list.clear();
@@ -142,7 +154,8 @@ let Code = new function() {
 			this._mainProgram.apply(this._api_this, arguments);
 		}
 		disable() {
-			
+			if(this._connection.status === 1) this.disconnectToAccessPoint();
+			else if(this._connection.status === 2) this.disableAccessPoint();
 		}
 	};
 };

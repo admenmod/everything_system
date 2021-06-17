@@ -1,6 +1,6 @@
 'use strict';
 let G = new function() {
-	let eviroment = this.eviroment = {
+	let environment = this.environment = {
 		signals: []
 	};
 };
