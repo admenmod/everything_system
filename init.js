@@ -3,6 +3,7 @@ let cvs = document.querySelector('#canvas');
 let {main, back} = cvs.canvasEmitCamera;
 
 let touch = new TouchesControl(cvs, e => e.path[0].className !== 'slot');
+let resourceLoader = new ResourceLoader();
 
 let db = {}; // resures: [images, audios]
 let em = new EventEmitter();
@@ -10,7 +11,10 @@ let em = new EventEmitter();
 let cfg = {};
 let scenes = {};
 
-cvs.loadFiles([], db).then(function() {
+resourceLoader.loadFiles([{
+	title: 'ship', type: 'image',
+	src: './img/ship.png'
+}], db).then(() => {
 	setTimeout(function() {
 		for(let i in scenes) scenes[i] = new Scene(scenes[i]);
 		Scene.set(scenes.main);

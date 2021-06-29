@@ -22,6 +22,9 @@ scenes.main = function() {
 	
 	programs.unit = function() {
 		let network = require('network');
+		let system  = require('system');
+		
+		console.log(system.getSystemInterface());
 		
 		let signal = network.detectAccessPoint().find(i => i.sourceName === 'server');
 		if(signal) {
@@ -47,6 +50,16 @@ scenes.main = function() {
 		mainProgram: programs.unit
 	});
 	
+	
+	let pleyar = new Units.Unit({
+		posC: cvs.size.div(2),
+		
+		computer: unit,
+		
+		scale: vec2(0.05, 0.05),
+		image: db.ship
+	});
+	
 	server.enable();
 	unit.enable();
 
@@ -60,12 +73,14 @@ scenes.main = function() {
 
 
 		//=======PROCES=======//--vs--//=======UPDATA=======//
-		// ...;
+		pleyar.updata();
 		//==================================================//
 
 
 		//==========DRAW==========//--vs--//==========RENDER==========//
 		main.ctx.clearRect(0, 0, cvs.width, cvs.height);
 		netmap.draw(main);
+		
+		pleyar.draw(main);
 	}; //==============================//
 };
