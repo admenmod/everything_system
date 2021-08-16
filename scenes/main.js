@@ -10,7 +10,13 @@ scenes.main = function() {
 		
 		let accessPoint = network.enableAccessPoint();
 		
-		accessPoint.on('connect', connection => {
+		accessPoint.on('connection', res => {
+			let validate = name => name === 'unit';
+			
+			res(validate, 'error: You not in list validate');
+		});
+		
+		accessPoint.on('connected', connection => {
 			connection.send('hi');
 		});
 		
@@ -24,18 +30,17 @@ scenes.main = function() {
 		let network = require('network');
 		let system  = require('system');
 		
-		console.log(system.getSystemInterface());
+		let si = system.getSystemInterface();
 		
 		let signal = network.detectAccessPoint().find(i => i.sourceName === 'server');
 		if(signal) {
-			let connection = network.connect(signal);
-			
-			connection.on('accept', data => {
-				console.log('server > unit', data);
-				
-				if(data === 'hi') ;
-				connection.send('hi');
-			});
+			network.connect(signal, connection => {
+				connection.on('accept', data => {
+					console.log('server > unit', data);
+					
+					if(data === 'hi') connection.send('hi');
+				});
+			}, err => console.log(err));
 		};
 	};
 	

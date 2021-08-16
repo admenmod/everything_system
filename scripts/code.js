@@ -16,7 +16,7 @@ let Code = new function() {
 			if(!sm) return module;
 			
 			Object.assign(module, {
-				connect: signal => sm.connectToAccessPoint(signal),
+				connect: (signal, res, rej) => (sm.connectToAccessPoint(signal, res, rej)),
 				disconnect: () => sm.disconnectToAccessPoint(),
 				detectAccessPoint: () => sm.detectAccessPoint(),
 				
@@ -101,19 +101,15 @@ let Code = new function() {
 			this._mainProgram.apply(this._api_this, arguments);
 		}
 		disable() {
-			if(this.modules.network) {
-				if(this.modules.network.status === 1) this.modules.network.disconnectToAccessPoint();
-				else if(this.modules.network.status === 2) this.modules.network.disableAccessPoint();
-			};
+			if(this.modules.network) this.module.network.disable();
 		}
 	};
 	
 	
 	let NetworkModule = this.NetworkModule = class extends EventEmitter {
-		constructor({ name, uuid, pos}) {
+		constructor({name, uuid, pos}) {
 			super();
 			this._pos = pos;
-			
 			this.name = name;
 			this.uuid = uuid;
 			
@@ -126,7 +122,7 @@ let Code = new function() {
 			this.connectionList = new Set();
 		}
 		
-		connectToAccessPoint(signal) {
+		connectToAccessPoint(signal, res, rej) {
 			if(this.status === 2) return;
 			if(this.status === 1 && this.connection) this.disconnectToAccessPoint();
 			this.status = 1;
@@ -139,12 +135,20 @@ let Code = new function() {
 				send: data => delay(() => this.connection === connection && connection.emit('accept', data))
 			});
 			
-			connection = signal.connect(plaggable);
 			
-			this.connection = connection;
-			this.signal = signal;
-			
-			return connection;
+			signal.connect(plaggable).then(([s, data]) => {
+				if(!s) {
+					rej(data);
+					return;
+				};
+				
+				connection = data;
+				
+				this.connection = connection;
+				this.signal = signal;
+				
+				res(connection);
+			});
 		}
 		disconnectToAccessPoint() {
 			if(this.status !== 1) return;
@@ -162,7 +166,6 @@ let Code = new function() {
 			if(this.status !== 0) return;
 			this.status = 2;
 			
-			
 			this.accessPoint = Object.assign(new EventEmitter(), {});
 			
 			this._signal = {
@@ -176,20 +179,34 @@ let Code = new function() {
 						send: data => delay(() => this.status === 2 && this.connectionList.has(plaggable) && (plaggable.emit('accept', data) || this.accessPoint.emit('accept', data, connection)))
 					});
 					
-					this.connectionList.add(plaggable);
-					delay(() => this.accessPoint.emit('connect', plaggable));
 					
-					return connection;
+					return delay(() => {
+						let s = false;
+						let error = '';
+						
+						this.accessPoint.emit('connection', (validate, err) => {
+							s = validate(plaggable.sourceName, plaggable.sourceUUID);
+							error = err;
+						});
+						
+						if(s) {
+							this.connectionList.add(plaggable);
+							
+							this.accessPoint.emit('connected', plaggable);
+						};
+						return [s, s ? connection : error];
+					});
 				},
+				
 				disconnect: () => {
 					let connection = [...this.connectionList][this.connectionList.size-1];
 					this.connectionList.delete(connection);
-					this.accessPoint.emit('disconnect', connection);
+					delay(() => this.accessPoint.emit('disconnect', connection));
 				}
 			};
+			
 			G.environment.accessPointsSignals.push(this._signal);
 			
-				
 			return this.accessPoint;
 		}
 		disableAccessPoint() {
@@ -201,6 +218,11 @@ let Code = new function() {
 			this.status = 0;
 			this.connectionList.clear();
 		}
+		
+		disable() {
+			if(this.status === 1) this.disconnectToAccessPoint();
+			else if(this.status === 2) this.disableAccessPoint();
+		}
 	};
 	
 	
@@ -208,7 +230,6 @@ let Code = new function() {
 		constructor({ name, uuid, pos }) {
 			super();
 			this._pos = pos;
-			
 			this.name = name;
 			this.uuid = uuid;
 			
