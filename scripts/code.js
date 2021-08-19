@@ -114,6 +114,7 @@ let Code = new function() {
 			this.uuid = uuid;
 			
 			this._signal = null;
+			this._plaggable = null;
 			
 			this.status = 0,	// null, connect, distribute (0-2)
 			this.connection = null;
@@ -135,6 +136,7 @@ let Code = new function() {
 				send: data => delay(() => this.connection === connection && connection.emit('accept', data))
 			});
 			
+			this._plaggable = plaggable;
 			
 			signal.connect(plaggable).then(([s, data]) => {
 				if(!s) {
@@ -154,7 +156,7 @@ let Code = new function() {
 			if(this.status !== 1) return;
 			this.status = 0;
 			
-			this.signal.disconnect();
+			this.signal.disconnect(this._plaggable);
 			this.connection = null;
 			this.signal = null;
 		}
@@ -176,7 +178,10 @@ let Code = new function() {
 					let connection = Object.assign(new EventEmitter(), {
 						sourceName: this.name,
 						sourceUUID: this.uuid,
-						send: data => delay(() => this.status === 2 && this.connectionList.has(plaggable) && (plaggable.emit('accept', data) || this.accessPoint.emit('accept', data, connection)))
+						close: () => {
+							
+						},
+						send: data => delay(() => this.status === 2 && this.connectionList.has(plaggable) && (plaggable.emit('accept', data) || this.accessPoint.emit('accept', data, plaggable)))
 					});
 					
 					
@@ -191,17 +196,16 @@ let Code = new function() {
 						
 						if(s) {
 							this.connectionList.add(plaggable);
-							
-							this.accessPoint.emit('connected', plaggable);
+							this.accessPoint.emit('connect', plaggable);
 						};
+						
 						return [s, s ? connection : error];
 					});
 				},
 				
-				disconnect: () => {
-					let connection = [...this.connectionList][this.connectionList.size-1];
-					this.connectionList.delete(connection);
-					delay(() => this.accessPoint.emit('disconnect', connection));
+				disconnect: plaggable => {
+					this.connectionList.delete(plaggable);
+					delay(() => this.accessPoint.emit('disconnect', plaggable));
 				}
 			};
 			
@@ -217,6 +221,13 @@ let Code = new function() {
 			
 			this.status = 0;
 			this.connectionList.clear();
+		}
+		closeConnection(connection) {
+			connection.emit('disconnect');
+			this.connectionList.delete(connection);
+		}
+		banConnection(connection) {
+			
 		}
 		
 		disable() {

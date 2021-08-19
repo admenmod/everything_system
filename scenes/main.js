@@ -8,20 +8,31 @@ scenes.main = function() {
 	programs.server = function() {
 		let network = require('network');
 		
+		
+		let validateList = ['unit'];
+		
+		console.log(network);
+		
 		let accessPoint = network.enableAccessPoint();
 		
 		accessPoint.on('connection', res => {
-			let validate = name => name === 'unit';
-			
-			res(validate, 'error: You not in list validate');
+			res(name => validateList.includes(name), 'error: You not in list validate');
 		});
 		
-		accessPoint.on('connected', connection => {
+		accessPoint.on('connect', connection => {
 			connection.send('hi');
+		});
+		
+		accessPoint.on('disconnect', connection => {
+			console.log('droped', connection);
+			connection.send('ggggg');
 		});
 		
 		accessPoint.on('accept', (data, connection) => {
 			console.log('unit > server', data);
+			
+			if(data === 'hi') connection.send('drop');
+			if(data === 'drop') network.g(connection);
 		});
 	};
 	
@@ -39,6 +50,14 @@ scenes.main = function() {
 					console.log('server > unit', data);
 					
 					if(data === 'hi') connection.send('hi');
+					if(data === 'drop') {
+						
+						connection.send('drop');
+						
+					//	console.log('drooop');
+					//	network.disconnect();
+					//	connection.send('fffff');
+					};
 				});
 			}, err => console.log(err));
 		};
