@@ -16,14 +16,15 @@ let Code = new function() {
 			if(!sm) return module;
 			
 			Object.assign(module, {
+				detectAccessPoint: () => sm.detectAccessPoint(),
+				
 				connect: (signal, res, rej) => (sm.connectToAccessPoint(signal, res, rej)),
 				disconnect: () => sm.disconnectToAccessPoint(),
-				detectAccessPoint: () => sm.detectAccessPoint(),
 				
 				enableAccessPoint: () => sm.enableAccessPoint(),
 				disableAccessPoint: () => sm.disableAccessPoint(),
 				
-				getConnectionList: () => [...sm._connection.connectionList]
+				getConnections: () => [...sm.connections]
 			});
 			
 			return module;
@@ -65,7 +66,6 @@ let Code = new function() {
 				radar: new RadarModule(this)
 			};
 			
-			this._signal = null;
 			this._cachModule = {};
 			
 			this._state = {};
@@ -88,7 +88,7 @@ let Code = new function() {
 			};
 			this._api_environment.global = this._api_environment;
 			
-			this._mainProgram = codeFunction(p.mainProgram||Computer.defaultMainProgram, this._api_environment, 'main-'+p.name);
+			this._mainProgram = codeShell(p.mainProgram||Computer.defaultMainProgram, this._api_environment, 'main-'+p.name);
 		}
 		
 		connectToSystem(systemInterface) {
@@ -114,18 +114,18 @@ let Code = new function() {
 			this.uuid = uuid;
 			
 			this._signal = null;
-			this._plaggable = null;
 			
 			this.status = 0,	// null, connect, distribute (0-2)
-			this.connection = null;
-			this.accessPoint = null;
-			this.signal = null;
-			this.connectionList = new Set();
+			this.connections = new Set();
+		}
+		
+		detectAccessPoint() {
+			return G.environment.accessPointsSignals.map(i => Object.assign({}, i));
 		}
 		
 		connectToAccessPoint(signal, res, rej) {
 			if(this.status === 2) return;
-			if(this.status === 1 && this.connection) this.disconnectToAccessPoint();
+			if(this.status === 1) this.disconnectToAccessPoint();
 			this.status = 1;
 			
 			let connection = null;
@@ -133,21 +133,23 @@ let Code = new function() {
 			let plaggable = Object.assign(new EventEmitter(), {
 				sourceName: this.name,
 				sourceUUID: this.uuid,
-				send: data => delay(() => this.connection === connection && connection.emit('accept', data))
+				isConnect: true,
+				close: () => {
+					if(!plaggable.isConnect) return;
+					plaggable.isConnect = false;
+					
+					delay(() => connection.emit('disconnect', connection));
+					connection.close();
+				},
+				send: data => delay(() => plaggable.isConnect && this.status === 1 && connection.emit('accept', data))
 			});
-			
-			this._plaggable = plaggable;
+			// code shell
 			
 			signal.connect(plaggable).then(([s, data]) => {
-				if(!s) {
-					rej(data);
-					return;
-				};
+				if(!s) return rej(data);
 				
 				connection = data;
-				
-				this.connection = connection;
-				this.signal = signal;
+				this.connections.add(connection);
 				
 				res(connection);
 			});
@@ -156,19 +158,14 @@ let Code = new function() {
 			if(this.status !== 1) return;
 			this.status = 0;
 			
-			this.signal.disconnect(this._plaggable);
-			this.connection = null;
-			this.signal = null;
-		}
-		detectAccessPoint() {
-			return G.environment.accessPointsSignals.map(i => Object.assign({}, i));
+			this.connections.clear();
 		}
 		
 		enableAccessPoint() {
 			if(this.status !== 0) return;
 			this.status = 2;
 			
-			this.accessPoint = Object.assign(new EventEmitter(), {});
+			let accessPoint = Object.assign(new EventEmitter(), {});
 			
 			this._signal = {
 				sourceName: this.name,
@@ -178,40 +175,40 @@ let Code = new function() {
 					let connection = Object.assign(new EventEmitter(), {
 						sourceName: this.name,
 						sourceUUID: this.uuid,
+						isConnect: true,
 						close: () => {
+							if(!connection.isConnect) return;
+							connection.isConnect = false;
 							
+							this.connections.delete(plaggable);
+							delay(() => accessPoint.emit('disconnect', plaggable));
+							plaggable.close();
 						},
-						send: data => delay(() => this.status === 2 && this.connectionList.has(plaggable) && (plaggable.emit('accept', data) || this.accessPoint.emit('accept', data, plaggable)))
+						send: data => delay(() => plaggable.isConnect && this.status === 2 && (plaggable.emit('accept', data) || accessPoint.emit('accept', data, plaggable)))
 					});
 					
 					
 					return delay(() => {
-						let s = false;
-						let error = '';
+						let s = true, error = '';
 						
-						this.accessPoint.emit('connection', (validate, err) => {
+						accessPoint.emit('connection', (validate, err) => {
 							s = validate(plaggable.sourceName, plaggable.sourceUUID);
 							error = err;
 						});
 						
 						if(s) {
-							this.connectionList.add(plaggable);
-							this.accessPoint.emit('connect', plaggable);
+							this.connections.add(plaggable);
+							accessPoint.emit('connect', plaggable);
 						};
 						
 						return [s, s ? connection : error];
 					});
-				},
-				
-				disconnect: plaggable => {
-					this.connectionList.delete(plaggable);
-					delay(() => this.accessPoint.emit('disconnect', plaggable));
 				}
 			};
 			
 			G.environment.accessPointsSignals.push(this._signal);
 			
-			return this.accessPoint;
+			return accessPoint;
 		}
 		disableAccessPoint() {
 			if(this.status !== 2) return;
@@ -220,11 +217,11 @@ let Code = new function() {
 			G.environment.accessPointsSignals.splice(l, 1);
 			
 			this.status = 0;
-			this.connectionList.clear();
+			this.connections.clear();
 		}
 		closeConnection(connection) {
 			connection.emit('disconnect');
-			this.connectionList.delete(connection);
+			this.connections.delete(connection);
 		}
 		banConnection(connection) {
 			

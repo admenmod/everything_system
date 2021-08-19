@@ -9,9 +9,10 @@ scenes.main = function() {
 		let network = require('network');
 		
 		
+		console.log(network);
+		
 		let validateList = ['unit'];
 		
-		console.log(network);
 		
 		let accessPoint = network.enableAccessPoint();
 		
@@ -20,12 +21,13 @@ scenes.main = function() {
 		});
 		
 		accessPoint.on('connect', connection => {
+			console.log('22l connection', connection);
+			
 			connection.send('hi');
 		});
 		
 		accessPoint.on('disconnect', connection => {
 			console.log('droped', connection);
-			connection.send('ggggg');
 		});
 		
 		accessPoint.on('accept', (data, connection) => {
@@ -51,12 +53,8 @@ scenes.main = function() {
 					
 					if(data === 'hi') connection.send('hi');
 					if(data === 'drop') {
-						
-						connection.send('drop');
-						
-					//	console.log('drooop');
-					//	network.disconnect();
-					//	connection.send('fffff');
+						console.log('unit: drooop');
+						connection.close();
 					};
 				});
 			}, err => console.log(err));
