@@ -9,7 +9,7 @@ let Units = new function() {
 			this.targetMove = this.pos.buf();
 			this.targetAttack = null;
 			
-			this.computer = p.computer;
+			this.processor = p.processor;
 			
 			this._systemInterface = new function() {
 				this.getMaxSpeed = () => self.maxSpeed;
@@ -20,7 +20,7 @@ let Units = new function() {
 				this.getTargetAttack = () => self.targetAttack;
 			};
 			
-			this.computer.connectToSystem(this._systemInterface);
+			this.processor.connectToSystem(this._systemInterface);
 		}
 		
 		attack(target) {

@@ -53,12 +53,12 @@ let Code = new function() {
 	};
 	
 	
-	let Computer = this.Computer = class extends EventEmitter {
+	let Processor = this.Processor = class extends EventEmitter {
 		constructor(p = {}) {
 			super();
 			this._pos = vec2();
 			
-			this.name = p.name||'Computer';
+			this.name = p.name||'Processor';
 			this.uuid = Symbol(this.name);
 			
 			this.modules = {
@@ -66,7 +66,7 @@ let Code = new function() {
 				radar: new RadarModule(this)
 			};
 			
-			this._cachModule = {};
+			this._cacheModules = {};
 			
 			this._state = {};
 			
@@ -80,15 +80,15 @@ let Code = new function() {
 			this._api_environment = {
 				process,
 				
-				require: module => module in this._cachModule ? this._cachModule[module] : this._cachModule[module] = globalModules[module](this),
+				require: module => module in this._cacheModules ? this._cacheModules[module] : this._cacheModules[module] = globalModules[module](this),
 				
 				Vector2, vec2, VectorN, vecN, EventEmitter,
-				console, Math, JSON,
+				console, Math, JSON, Set, Map,
 				Object, Array, Function, Number, String, BigInt, Symbol
 			};
 			this._api_environment.global = this._api_environment;
 			
-			this._mainProgram = codeShell(p.mainProgram||Computer.defaultMainProgram, this._api_environment, 'main-'+p.name);
+			this._mainProgram = codeShell(p.mainProgram||Processor.defaultMainProgram, Object.freeze(this._api_environment), 'main-'+p.name);
 		}
 		
 		connectToSystem(systemInterface) {
@@ -123,7 +123,7 @@ let Code = new function() {
 			return G.environment.accessPointsSignals.map(i => Object.assign({}, i));
 		}
 		
-		connectToAccessPoint(signal, res, rej) {
+		connectToAccessPoint(signal, res, rej = err => this._api_environment.console.log(err)) {
 			if(this.status === 2) return;
 			if(this.status === 1) this.disconnectToAccessPoint();
 			this.status = 1;
@@ -143,10 +143,9 @@ let Code = new function() {
 				},
 				send: data => delay(() => plaggable.isConnect && this.status === 1 && connection.emit('accept', data))
 			});
-			// code shell
 			
-			signal.connect(plaggable).then(([s, data]) => {
-				if(!s) return rej(data);
+			signal.connect(plaggable).then(([err, data]) => {
+				if(err) return rej(err);
 				
 				connection = data;
 				this.connections.add(connection);
@@ -189,19 +188,21 @@ let Code = new function() {
 					
 					
 					return delay(() => {
-						let s = true, error = '';
+						let reasonForDenial = '',
+							allowed = false;
 						
-						accessPoint.emit('connection', (validate, err) => {
-							s = validate(plaggable.sourceName, plaggable.sourceUUID);
-							error = err;
-						});
+						accessPoint.emit('connecting', () => {	// allow
+							allowed = true;
+						}, reason => {	// deny
+							reasonForDenial = reason||'access denied';
+						}, { name: plaggable.sourceName, uuid: plaggable.sourceUUID });
 						
-						if(s) {
+						if(!reasonForDenial && allowed) {
 							this.connections.add(plaggable);
 							accessPoint.emit('connect', plaggable);
 						};
 						
-						return [s, s ? connection : error];
+						return [reasonForDenial, connection];
 					});
 				}
 			};
@@ -219,10 +220,12 @@ let Code = new function() {
 			this.status = 0;
 			this.connections.clear();
 		}
+		// todo: [o]
 		closeConnection(connection) {
 			connection.emit('disconnect');
 			this.connections.delete(connection);
 		}
+		// todo: [o]
 		banConnection(connection) {
 			
 		}
