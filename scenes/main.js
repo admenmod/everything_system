@@ -2,15 +2,27 @@
 scenes.main = function() {
 	let cameraMoveObject = new CameraMoveObject(main.camera);
 	cvs.on('resize', e => netmap.size.set(cvs.size));
-
+	
+	
+	let map = new MapParser.Map('testmap.json', './map/');
+	
+	map.on('load', map => {
+		generateImage(map.width*map.tilewidth, map.height*map.tileheight, ctx => {
+			console.log(map.tilesets[66].imagedata);
+			map.draw(ctx);
+		}).then(image => db.map = image);
+		
+		netmap.tile.set(20);
+		console.log(map);
+	});
+	
+	
 	let programs = {};
 	
 	programs.server = function() {
 		let network = require('network');
 		
-		
-		console.log(network);
-		
+		/*
 		let validateList = ['unit'];
 		let reg = new Map();
 		
@@ -19,7 +31,6 @@ scenes.main = function() {
 		accessPoint.on('connecting', (allow, deny, { name, uuid }) => {
 			reg.set(uuid, name);
 			if(validateList.includes(reg.get(uuid))) allow();
-		//	deny('error: You not in list validate');
 		});
 		
 		accessPoint.on('connect', connection => {
@@ -36,8 +47,9 @@ scenes.main = function() {
 			console.log('unit > server', data);
 			
 			if(data === 'hi') connection.send('drop');
-			if(data === 'drop') network.g(connection);
+			if(data === 'drop') connection.close();
 		});
+		*/
 	};
 	
 	
@@ -48,6 +60,7 @@ scenes.main = function() {
 		let si = system.getSystemInterface();
 		let signal = network.detectAccessPoint().find(i => i.sourceName === 'server');
 		
+		/*
 		if(signal) {
 			network.connect(signal, connection => {
 				connection.on('accept', data => {
@@ -61,6 +74,16 @@ scenes.main = function() {
 				});
 			}, err => console.log(err));
 		};
+		*/
+		
+		
+		si.on('updata', e => {
+			e.make('move', vec2(10, 20));
+		});
+		
+		si.on('statuschange', (status, prev) => {
+			console.log(status, prev);
+		});
 		
 		
 		console.log(si);
@@ -89,8 +112,8 @@ scenes.main = function() {
 	
 	server.enable();
 	unit.enable();
-
-
+	
+	
 	//===============updata===============//
 	this.updata = function(dt) {
 		let touchC = main.camera.buf(touch);
@@ -106,6 +129,11 @@ scenes.main = function() {
 
 		//==========DRAW==========//--vs--//==========RENDER==========//
 		main.ctx.clearRect(0, 0, cvs.width, cvs.height);
+		
+		if(db.map) main.drawImage(db.map, map.pos.x, map.pos.y, db.map.width, db.map.height);
+		
+	//	if(map?.tilesets?.[66]?.isLoaded) main.drawImage(map.tilesets[66].imagedata, -100, -100, 100, 100);
+		
 		netmap.draw(main);
 		
 		pleyar.draw(main);
