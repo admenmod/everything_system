@@ -6,4 +6,6 @@ let G = new function() {
 		radarsSignals: [],
 		accessPointsSignals: []
 	};
+	
+	
 };

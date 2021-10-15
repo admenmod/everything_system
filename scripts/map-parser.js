@@ -21,7 +21,7 @@ let MapParser = Object.assign(new EventEmitter(), new function() {
 				for(let i = 0; i < this.tilesets.length; i++) {
 					let tileset = this.tilesets[i];
 					
-					proms.push(resourceLoader.loadImage(prefix+tileset.image, tileset.imagewidth, tileset.imageheight)
+					proms.push(loadImage(prefix+tileset.image, tileset.imagewidth, tileset.imageheight)
 					.then(img => {
 						tileset.imagedata = img;
 						tileset.isLoaded = true;
@@ -42,13 +42,15 @@ let MapParser = Object.assign(new EventEmitter(), new function() {
 			});
 		}
 		
+		_cacheTile = {}
+		
 		draw(ctx, pos = this.pos) {
 			if(!this.isLoaded) return;
 			
 			ctx.save();
 			for(let layer of this.layers) {
 				if(!layer.visible) continue;
-					
+				
 				let sx = this.scale.x,
 					sy = this.scale.y;
 				
@@ -59,14 +61,17 @@ let MapParser = Object.assign(new EventEmitter(), new function() {
 					
 					if(id === 0) continue;
 					
-				//	let tileset = this.tilesets[this.tilesets.findIndex(i => i.firstgid > id)-1];
 					let tileset = null;
-					for(let i = 0; i < this.tilesets.length; i++) {
-						tileset = this.tilesets[i];
-						let next = this.tilesets[i+1];
-						
-						if(!next) break;
-						if(tileset.firstgid <= id && next.firstgid > id) break;
+					if(!(tileset = this._cacheTile[id])) {
+						for(let i = 0; i < this.tilesets.length; i++) {
+							tileset = this.tilesets[i];
+							let next = this.tilesets[i+1];
+							
+							if(!next || tileset.firstgid <= id && next.firstgid > id) {
+								this._cacheTile[id] = tileset;
+								break;
+							};
+						};
 					};
 					
 					if(!tileset || !tileset.isLoaded) {
@@ -81,11 +86,16 @@ let MapParser = Object.assign(new EventEmitter(), new function() {
 					let tw = tileset.tilewidth,
 						th = tileset.tileheight;
 					
-					ctx.drawImage(tileset.imagedata, tx*tw, ty*th, tw, th, pos.x + lx*tw*sx, pos.y + ly*th*sy, tw*sx, th*sy);
+					let gtw = this.tilewidth,
+						gth = this.tileheight;
+					
+					ctx.drawImage(tileset.imagedata, tx*tw, ty*th, tw, th, pos.x + lx*gtw*sx, pos.y + ly*gth*sy, tw*sx, th*sy);
 				};
 			};
 			
 			ctx.restore();
 		}
 	};
+	
+	let loadMap = this.loadMap = (...args) => new Promise((res, rej) => new Map(...args).once('load', res));
 });

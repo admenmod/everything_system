@@ -1,141 +1,146 @@
 'use strict';
-scenes.main = function() {
-	let cameraMoveObject = new CameraMoveObject(main.camera);
+Scene.create('main', function() {
+	let netmap = SystemObjects.netmap;
+	
+	let cameraMoveingObject = new SystemObjects.CameraMoveingObject(main.camera);
 	cvs.on('resize', e => netmap.size.set(cvs.size));
 	
+	netmap.tile.set(20);
 	
-	let map = new MapParser.Map('testmap.json', './map/');
-	
-	map.on('load', map => {
-		generateImage(map.width*map.tilewidth, map.height*map.tileheight, ctx => {
-			console.log(map.tilesets[66].imagedata);
-			map.draw(ctx);
-		}).then(image => db.map = image);
-		
-		netmap.tile.set(20);
-		console.log(map);
-	});
+	let scale = vec2(1, 1);
 	
 	
 	let programs = {};
 	
-	programs.server = function() {
-		let network = require('network');
+	let server = null, unit = null, player = null, map = null;
+	
+	let idBorders = [
+		1333, 1334, 1335, 1336, 1338, 1339, 1340, 1341,
+		1345, 1347, 1351, 1353
+	];
+	
+	let l = 0, pl = 0, sl = scale.x;
+	let pos1 = vec2(), pos2 = vec2();
+	
+	
+	this.preload(loadImage('./img/ship.png').then(img => db.ship = img));
+	this.preload(generateImage(1, 1, (ctx) => {
+		ctx.fillStyle = '#000000';
+		ctx.globalAlpha = 0;
+		ctx.fillRect(0, 0, 1, 1);
+	}).then(img => db._ = img));
+	
+	this.preload(fetch(location.origin+'/user-code/unit.js')
+		.then(data => data.text())
+		.then(data => programs.unit = data));
 		
-		/*
-		let validateList = ['unit'];
-		let reg = new Map();
+	this.preload(fetch(location.origin+'/user-code/server.js')
+		.then(data => data.text())
+		.then(data => programs.server = data));
 		
-		let accessPoint = network.enableAccessPoint();
+	this.preload(MapParser.loadMap('testmap.json', './map/').then(data => {
+		G.map = map = data;
 		
-		accessPoint.on('connecting', (allow, deny, { name, uuid }) => {
-			reg.set(uuid, name);
-			if(validateList.includes(reg.get(uuid))) allow();
+		console.log(map);
+		
+		return generateImage(map.width*map.tilewidth, map.height*map.tileheight, ctx => {
+			map.draw(ctx);
+		}).then(img => db.map = img);
+	}));
+	
+	
+	//===============init===============//
+	this.init = () => {
+		server = new Code.Processor({
+			name: 'server',
+			mainProgram: programs.server
 		});
 		
-		accessPoint.on('connect', connection => {
-			console.log('22l connection', connection);
+		unit = new Code.Processor({
+			name: 'unit',
+			mainProgram: programs.unit
+		});
+		
+		
+		player = new Units.Unit({
+			posC: cvs.size.div(2),
 			
-			connection.send('hi');
-		});
-		
-		accessPoint.on('disconnect', connection => {
-			console.log('droped', connection);
-		});
-		
-		accessPoint.on('accept', (data, connection) => {
-			console.log('unit > server', data);
+			processor: unit,
 			
-			if(data === 'hi') connection.send('drop');
-			if(data === 'drop') connection.close();
+			scale: vec2(0.05, 0.05),
+			image: db.ship
 		});
-		*/
+		
+		
+		server.enable();
+		unit.enable();
+		
+		player.on('collide', (dir, a, b) => {
+			console.log(true);
+		});
 	};
-	
-	
-	programs.unit = function() {
-		let network = require('network');
-		let system  = require('system');
-		
-		let si = system.getSystemInterface();
-		let signal = network.detectAccessPoint().find(i => i.sourceName === 'server');
-		
-		/*
-		if(signal) {
-			network.connect(signal, connection => {
-				connection.on('accept', data => {
-					console.log('server > unit', data);
-					
-					if(data === 'hi') connection.send('hi');
-					if(data === 'drop') {
-						console.log('unit: drooop');
-						connection.close();
-					};
-				});
-			}, err => console.log(err));
-		};
-		*/
-		
-		
-		si.on('updata', e => {
-			e.make('move', vec2(10, 20));
-		});
-		
-		si.on('statuschange', (status, prev) => {
-			console.log(status, prev);
-		});
-		
-		
-		console.log(si);
-	};
-	
-	
-	let server = new Code.Processor({
-		name: 'server',
-		mainProgram: programs.server
-	});
-
-	let unit = new Code.Processor({
-		name: 'unit',
-		mainProgram: programs.unit
-	});
-	
-	
-	let pleyar = new Units.Unit({
-		posC: cvs.size.div(2),
-		
-		processor: unit,
-		
-		scale: vec2(0.05, 0.05),
-		image: db.ship
-	});
-	
-	server.enable();
-	unit.enable();
 	
 	
 	//===============updata===============//
 	this.updata = function(dt) {
-		let touchC = main.camera.buf(touch);
 		//=======prePROCES=======//--vs--//=======EVENTS=======//
-		cameraMoveObject.updata(touch, main.camera);
+		if(touches.active.length === 2) {
+			pos1.set(touches.touches[touches.active[0]]);
+			pos2.set(touches.touches[touches.active[1]]);
+			
+			if(touches.touches[1].isPress()) {
+				l = pl = pos1.getDistance(pos2);
+				sl = scale.x;
+			};
+			
+			l = pos1.getDistance(pos2);
+			
+			scale.set(l/pl*sl);
+			scale.x = Math.max(0.2, Math.min(5, scale.x));
+			scale.y = Math.max(0.2, Math.min(5, scale.y));
+			
+			netmap.size.set(cvs.size.inc(scale));
+		} else {
+			cameraMoveingObject.updata(touches, main.camera);
+		};
 		//==================================================//
 
 
 		//=======PROCES=======//--vs--//=======UPDATA=======//
-		pleyar.updata();
+		player.instructionUpdata();
+		
+		let layer = map.layers[0];
+		let size = vec2(map.tilewidth, map.tileheight);
+		
+		for(let i = 0; i < layer.data.length; i++) {
+			let id = layer.data[i];
+			if(!idBorders.includes(id)) continue;
+			
+			player.hasCollide({
+				x: i % layer.width, y: Math.floor(i/layer.width),
+				w: size.x, h: size.y
+			});
+		};
+		
+		player.updata();
 		//==================================================//
 
 
 		//==========DRAW==========//--vs--//==========RENDER==========//
 		main.ctx.clearRect(0, 0, cvs.width, cvs.height);
 		
-		if(db.map) main.drawImage(db.map, map.pos.x, map.pos.y, db.map.width, db.map.height);
 		
-	//	if(map?.tilesets?.[66]?.isLoaded) main.drawImage(map.tilesets[66].imagedata, -100, -100, 100, 100);
+		main.save();
+		main.scale(scale.x, scale.y);
+		
+		main.drawImage(db.map, map.pos.x, map.pos.y, db.map.width, db.map.height);
 		
 		netmap.draw(main);
 		
-		pleyar.draw(main);
+		player.draw(main);
+		
+		main.restore();
 	}; //==============================//
-};
+});
+
+Scene.run('main');

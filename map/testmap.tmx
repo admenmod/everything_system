@@ -1720,7 +1720,7 @@
   </layer>
   <layer name="buildings" width="20" height="20">
     <data encoding="base64" compression="gzip">
-   H4sIAAAAAAAAAGNgGAWjYBRQE0xnG2gXjIJRQB8AAGzjIMRABgAA
+   H4sIAAAAAAAAAJvOxjAKRsEooCKYPpqnRsEIAQB2icrmQAYAAA==
   </data>
   </layer>
 </map>

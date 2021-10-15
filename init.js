@@ -1,19 +1,25 @@
 'use strict';
+let {
+	codeShell, random, JSONcopy, loadImage, generateImage,
+	EventEmitter, Scene, Child,
+	Vector2, vec2, VectorN, vecN,
+	CameraImitationCanvas, CanvasLayer
+} = globalThis.Ver;
+
 let cvs = document.querySelector('#canvas');
-let {main, back} = cvs.canvasEmitCamera;
+let {main, back} = cvs.cameraImitationCanvas;
 
-let touch = new TouchesControl(cvs, e => e.path[0].className !== 'slot');
-let resourceLoader = new ResourceLoader();
-
-let db = {}; // resures: [images, audios]
-let em = new EventEmitter();
+let touches = new TouchesController(cvs, e => e.path[0].className !== 'slot');
 
 let cfg = {};
-let scenes = {};
+let db = {}; // resures: [images, audios]
+
+
+requestAnimationFrame(_updata);
 
 //========== LoopGame ==========//
 function _updata(dt) {
-	Scene.active_scene.updata(dt);
-	touch.onNull();
+	Scene.updata(dt);
+	touches.nullify();
 	requestAnimationFrame(_updata);
 };

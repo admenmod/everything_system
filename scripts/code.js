@@ -81,7 +81,8 @@ let Code = new function() {
 				
 				require: module => module in this._cacheModules ? this._cacheModules[module] : this._cacheModules[module] = globalModules[module](this),
 				
-				Vector2, vec2, VectorN, vecN, EventEmitter,
+				Vector2, vec2, VectorN, vecN, EventEmitter, random, JSONcopy,
+				Promise, Proxy, WeakRef,
 				console, Date, Math, JSON, Set, Map, WeakSet, WeakMap,
 				Object, Array, Function, Number, String, RegExp, BigInt, Symbol
 			};
@@ -255,7 +256,7 @@ let Code = new function() {
 	
 	
 	let RadarModule = this.RadarModule = class extends EventEmitter {
-		constructor({ name, uuid, pos }) {
+		constructor({name, uuid, pos}) {
 			super();
 			this._pos = pos;
 			this.name = name;

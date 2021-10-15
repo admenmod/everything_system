@@ -1,9 +1,11 @@
 'use strict';
 let Units = new function() {
-	let Unit = this.Unit = class extends ImageNode {
+	let Unit = this.Unit = class extends SystemObjects.ImageNode {
 		constructor(p = {}) {
 			super(p);
 			let self = this;
+			
+			this.prevPos = this.pos.buf();
 			
 			this._status = 'idle';
 			this.maxSpeed = p.maxSpeed||0.02;
@@ -93,6 +95,48 @@ let Units = new function() {
 			this.processor.connectToSystem(this._systemInterface);
 		}
 		
+		hasCollide(box) {
+			let t = false;
+			if(t = this.isStaticIntersect(box)) {
+				let dir = null;
+				
+				let a = {
+					x: this.prevPos.x, w: this.size.x,
+					y: this.prevPos.y, h: this.size.y
+				};
+				let b = {
+					x: box.pos.x, w: box.size.x,
+					y: box.pos.y, h: box.size.y
+				};
+			
+				if(a.x+a.w <= b.x) dir = 'left';
+				if(a.x >= b.x+b.w) dir = 'right';
+				if(a.y+a.h <= b.y) dir = 'top';
+				if(a.y >= b.y+b.h) dir = 'bottom';
+				
+				console.log(55);
+				this.emit('collide', dir, a, b, t);
+				this.collideHandler(dir, a, b, t);
+			};
+			
+			this.prevPos.set(this.pos);
+		}
+		collideHandler(dir, a, b) {
+			if(dir === 'left') {
+				this.vel.x = 0;
+				this.pos.x = b.x-a.w;
+			} else if(dir === 'right') {
+				this.vel.x = 0;
+				this.pos.x = b.x+b.w;
+			} else if(dir === 'top') {
+				this.vel.y = 0;
+				this.pos.y = by-ah;
+			} else if(dir === 'bottom') {
+				this.vel.y = 0;
+				this.pos.y = by+bh;
+			};
+		}
+		
 		destroy() {
 			clearInterval(this._iInterval);
 		}
@@ -104,7 +148,7 @@ let Units = new function() {
 			this.actionFlags.MOVE = false;
 			this.instructionLoop.push('move');
 			
-			this.vel.moveTo(target.ot(this.pos), this.maxSpeed);
+			this.vel.moveTo(target.buf().minus(this.pos), this.maxSpeed);
 		}
 		attackI() {
 			let target = this.targets.attack;
@@ -121,12 +165,13 @@ let Units = new function() {
 			
 		}
 		
-		updata() {
+		instructionUpdata() {
 		//	this.instructionLoop.forEach(i => i());
 			
 			this.moveI(this.targets.move);
 			this.attackI(this.targets.attack);
-			
+		}
+		updata() {
 			this.vel.inc(0.97);
 			this.pos.plus(this.vel);
 		}
