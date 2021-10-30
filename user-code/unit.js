@@ -26,3 +26,4 @@ si.on('updata', e => {
 });
 
 console.log(si);
+

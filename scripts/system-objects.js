@@ -4,6 +4,7 @@ let SystemObjects = new function() {
 		constructor(p = {}) {
 			super();
 			this.type = 'BaseNode';
+			this._isRenderBorder = false;
 			
 			this.pos = p.pos||vec2();
 			this.vel = p.vel||vec2();
@@ -57,6 +58,7 @@ let SystemObjects = new function() {
 		constructor(p = {}) {
 			super(p);
 			this.type = 'ImageNode';
+			
 			this.sizePlus = p.sizePlus||vec2();
 			this.image = p.image;
 			
@@ -78,9 +80,11 @@ let SystemObjects = new function() {
 			ctx.globalAlpha = this.alpha;
 			ctx.drawImage(this.image, pos.x, pos.y, this.size.x*this.globalScale.x+this.sizePlus.x, this.size.y*this.globalScale.y+this.sizePlus.y);
 			
-		//	ctx.strokeStyle = '#ffff00';
-		//	ctx.strokeRect(this.pos.x, this.pos.y, this.size.x*this.globalScale.x, this.size.y*this.globalScale.y);
-		//	ctx.strokeRect(this.pos.x-ctx.lineWidth/2, this.pos.y-ctx.lineWidth/2, this.size.x*this.globalScale.x+ctx.lineWidth, this.size.y*this.globalScale.y+ctx.lineWidth);
+			if(this._isRenderBorder) {
+				ctx.strokeStyle = '#ffff00';
+				ctx.strokeRect(this.pos.x, this.pos.y, this.size.x*this.globalScale.x, this.size.y*this.globalScale.y);
+				ctx.strokeRect(this.pos.x-ctx.lineWidth/2, this.pos.y-ctx.lineWidth/2, this.size.x*this.globalScale.x+ctx.lineWidth, this.size.y*this.globalScale.y+ctx.lineWidth);
+			};
 			ctx.restore();
 		}
 	};

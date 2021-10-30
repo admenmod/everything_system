@@ -1,13 +1,9 @@
 'use strict';
 Scene.create('main', function() {
-	let netmap = SystemObjects.netmap;
+	let { netmap } = SystemObjects;
 	
 	let cameraMoveingObject = new SystemObjects.CameraMoveingObject(main.camera);
 	cvs.on('resize', e => netmap.size.set(cvs.size));
-	
-	netmap.tile.set(20);
-	
-	let scale = vec2(1, 1);
 	
 	
 	let programs = {};
@@ -19,7 +15,9 @@ Scene.create('main', function() {
 		1345, 1347, 1351, 1353
 	];
 	
-	let l = 0, pl = 0, sl = scale.x;
+	let boxes = [];
+	
+	let l = 0, pl = 0;
 	let pos1 = vec2(), pos2 = vec2();
 	
 	
@@ -49,6 +47,25 @@ Scene.create('main', function() {
 	}));
 	
 	
+	class Box {
+		constructor(p = {}) {
+			this.x = p.x||0;
+			this.y = p.y||0;
+			
+			this.w = p.w||10;
+			this.h = p.h||10;
+		}
+		
+		draw(ctx) {
+			ctx.save();
+			ctx.beginPath();
+			ctx.strokeStyle = '#ffff00';
+			ctx.strokeRect(this.x, this.y, this.w, this.h);
+			ctx.restore();
+		}
+	};
+	
+	
 	//===============init===============//
 	this.init = () => {
 		server = new Code.Processor({
@@ -70,13 +87,14 @@ Scene.create('main', function() {
 			scale: vec2(0.05, 0.05),
 			image: db.ship
 		});
+		player._isRenderBorder = true;
 		
 		
 		server.enable();
 		unit.enable();
 		
 		player.on('collide', (dir, a, b) => {
-			console.log(true);
+		//	console.log(dir, a, b);
 		});
 	};
 	
@@ -84,6 +102,62 @@ Scene.create('main', function() {
 	//===============updata===============//
 	this.updata = function(dt) {
 		//=======prePROCES=======//--vs--//=======EVENTS=======//
+		cameraMoveingObject.updata(touches, main.camera);
+		//==================================================//
+
+
+		//=======PROCES=======//--vs--//=======UPDATA=======//
+		player.instructionUpdata();
+		
+		let layer = map.layers[0];
+		let size = vec2(map.tilewidth, map.tileheight);
+		
+		for(let i = 0; i < layer.data.length; i++) {
+			let id = layer.data[i];
+			if(!idBorders.includes(id)) continue;
+			
+			
+			let box = new Box({
+				x: i % layer.width * size.x, y: Math.floor(i/layer.width) * size.y,
+				w: size.x, h: size.y
+			});
+			
+			boxes.push(box);
+			
+			player.hasCollide(box);
+		};
+		
+		player.updata(dt);
+		//==================================================//
+
+
+		//==========DRAW==========//--vs--//==========RENDER==========//
+		main.ctx.clearRect(0, 0, cvs.width, cvs.height);
+		
+		main.drawImage(db.map, map.pos.x, map.pos.y, db.map.width, db.map.height);
+		netmap.draw(main);
+		player.draw(main);
+		
+		for(let i = 0; i < boxes.length; i++) boxes[i].draw(main);
+		
+		main.fillStyle = '#eeeeee';
+		main.font = '15px Arial';
+		main.fillText(Math.floor(1000/dt), 20, 20);
+	}; //==============================//
+});
+
+Scene.run('main');
+
+
+/*
+		netmap.tile.set(20);
+		
+		let scale = vec2(1, 1);
+		
+		
+		
+		
+		
 		if(touches.active.length === 2) {
 			pos1.set(touches.touches[touches.active[0]]);
 			pos2.set(touches.touches[touches.active[1]]);
@@ -100,47 +174,5 @@ Scene.create('main', function() {
 			scale.y = Math.max(0.2, Math.min(5, scale.y));
 			
 			netmap.size.set(cvs.size.inc(scale));
-		} else {
-			cameraMoveingObject.updata(touches, main.camera);
-		};
-		//==================================================//
-
-
-		//=======PROCES=======//--vs--//=======UPDATA=======//
-		player.instructionUpdata();
-		
-		let layer = map.layers[0];
-		let size = vec2(map.tilewidth, map.tileheight);
-		
-		for(let i = 0; i < layer.data.length; i++) {
-			let id = layer.data[i];
-			if(!idBorders.includes(id)) continue;
-			
-			player.hasCollide({
-				x: i % layer.width, y: Math.floor(i/layer.width),
-				w: size.x, h: size.y
-			});
-		};
-		
-		player.updata();
-		//==================================================//
-
-
-		//==========DRAW==========//--vs--//==========RENDER==========//
-		main.ctx.clearRect(0, 0, cvs.width, cvs.height);
-		
-		
-		main.save();
-		main.scale(scale.x, scale.y);
-		
-		main.drawImage(db.map, map.pos.x, map.pos.y, db.map.width, db.map.height);
-		
-		netmap.draw(main);
-		
-		player.draw(main);
-		
-		main.restore();
-	}; //==============================//
-});
-
-Scene.run('main');
+		}
+*/
