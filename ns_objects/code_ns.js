@@ -1,5 +1,5 @@
 'use strict';
-let Code = new function() {
+let code_ns = new function() {
 	let delay = cb => new Promise(res => {
 		let t = setTimeout(() => {
 			clearTimeout(t);
@@ -128,7 +128,7 @@ let Code = new function() {
 		}
 		
 		detectAccessPoint() {
-			return G.environment.accessPointsSignals.map(i => Object.assign({}, i));
+			return global_ns.environment.accessPointsSignals.map(i => Object.assign({}, i));
 		}
 		
 		connect(signal, res, rej = err => this._api_environment.console.log(err)) {

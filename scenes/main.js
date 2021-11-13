@@ -1,8 +1,8 @@
 'use strict';
 Scene.create('main', function() {
-	let { netmap } = SystemObjects;
+	let { netmap, CameraMoveingObject } = global_ns;
 	
-	let cameraMoveingObject = new SystemObjects.CameraMoveingObject(main.camera);
+	let cameraMoveingObject = new CameraMoveingObject(main.camera);
 	cvs.on('resize', e => netmap.size.set(cvs.size));
 	
 	
@@ -37,7 +37,7 @@ Scene.create('main', function() {
 		.then(data => programs.server = data));
 		
 	this.preload(MapParser.loadMap('testmap.json', './map/').then(data => {
-		G.map = map = data;
+		global_ns.map = map = data;
 		
 		console.log(map);
 		
@@ -68,18 +68,18 @@ Scene.create('main', function() {
 	
 	//===============init===============//
 	this.init = () => {
-		server = new Code.Processor({
+		server = new code_ns.Processor({
 			name: 'server',
 			mainProgram: programs.server
 		});
 		
-		unit = new Code.Processor({
+		unit = new code_ns.Processor({
 			name: 'unit',
 			mainProgram: programs.unit
 		});
 		
 		
-		player = new Units.Unit({
+		player = new units_ns.Unit({
 			posC: cvs.size.div(2),
 			
 			processor: unit,

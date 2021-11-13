@@ -1,6 +1,6 @@
 'use strict';
-let Units = new function() {
-	let {ImageNode} = SystemObjects;
+let units_ns = new function() {
+	let { ImageNode } = nodes_ns;
 	
 	let Unit = this.Unit = class extends ImageNode {
 		constructor(p = {}) {
