@@ -26,11 +26,11 @@ loadScript('scenes/main.js');
 //========== LoopGame ==========//
 (() => {
 	let prevTime = 0;
-	function _updata(dt) {
-		if(dt-prevTime < 100) Scene.updata(dt-prevTime);
+	function _update(dt) {
+		if(dt-prevTime < 100) Scene.update(dt-prevTime);
 		prevTime = dt;
 		touches.nullify();
-		requestAnimationFrame(_updata);
+		requestAnimationFrame(_update);
 	};
-	requestAnimationFrame(_updata);
+	requestAnimationFrame(_update);
 })();

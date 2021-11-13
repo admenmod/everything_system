@@ -22,7 +22,9 @@ if(signal) {
 
 
 si.on('updata', e => {
-	e.make('move', vec2(10, 20));
+	e.execute('move', vec2(10, 20));
+//	si.execute('move', vec2(10, 20));
+// sdelatb^
 });
 
 console.log(si);

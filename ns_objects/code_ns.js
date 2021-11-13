@@ -41,9 +41,9 @@ let code_ns = new function() {
 			module.getSystemInterface = () => self._systemInterface||null;
 			let si = self._systemInterface;
 			
-		//	si.on('updata', e => module.emit('updata', e));
+		//	si.on('update', e => module.emit('update', e));
 			
-			self._iInterval = setInterval(() => self._systemInterface.emit('updata', self._systemInterface._newEventAPI()), 1000/20);
+			self._iInterval = setInterval(() => self._systemInterface.emit('update', self._systemInterface._newEventAPI()), 1000/20);
 			
 			return module;
 		}

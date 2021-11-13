@@ -16,7 +16,7 @@ let global_ns = new function() {
 			this.minspeed = minspeed||0.02;
 			this.touch = null;
 		}
-		updata(touch, v) {
+		update(touch, v) {
 			if(!this.touch) {
 				if(Math.abs(this.cameraSpeed.moduleSq) < this.minspeed) this.cameraSpeed.set(0);
 				
@@ -58,7 +58,7 @@ let global_ns = new function() {
 		}
 		get value() { return Math.round(this.pos.getDistance(this.core.pos) / (this.radius-this.core.radius) * 10000) / 10000; }
 		get angle() { return this._angle = this.value ? this.pos.getAngleRelative(this.core.pos) : this._angle; }
-		updata(touch) {
+		update(touch) {
 			if(!this.touch) this.touch = touch.findTouch(t => this.pos.getDistance(t) < this.radius);
 			else if(this.touch) {
 				let l = this.pos.getDistance(this.touch);
@@ -179,7 +179,7 @@ let global_ns = new function() {
 	
 	let setTickout = this.setTickout = (anim, tickout = 1, ...arg) => setTickout.anims.push({ tick: 0, tickout, anim, arg });
 	setTickout.anims = [];
-	setTickout.updata = function() {
+	setTickout.update = function() {
 		for(let i = 0; i < this.anims.length; i++) {
 			if(this.anims[i].tick++ >= this.anims[i].tickout) {
 				let a = this.anims.splice(i, 1)[0];

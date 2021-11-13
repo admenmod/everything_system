@@ -8,7 +8,8 @@ Scene.create('main', function() {
 	
 	let programs = {};
 	
-	let server = null, unit = null, player = null, map = null;
+	let server = null, unit = null, map = null;
+	let player = global_ns.player = null;
 	
 	let idBorders = [
 		1333, 1334, 1335, 1336, 1338, 1339, 1340, 1341,
@@ -22,6 +23,7 @@ Scene.create('main', function() {
 	
 	
 	this.preload(loadImage('./img/ship.png').then(img => db.ship = img));
+	
 	this.preload(generateImage(1, 1, (ctx) => {
 		ctx.fillStyle = '#000000';
 		ctx.globalAlpha = 0;
@@ -79,7 +81,7 @@ Scene.create('main', function() {
 		});
 		
 		
-		player = new units_ns.Unit({
+		global_ns.player = player = new units_ns.Unit({
 			posC: cvs.size.div(2),
 			
 			processor: unit,
@@ -93,24 +95,10 @@ Scene.create('main', function() {
 		server.enable();
 		unit.enable();
 		
-		player.on('collide', (dir, a, b) => {
-		//	console.log(dir, a, b);
-		});
-	};
-	
-	
-	//===============updata===============//
-	this.updata = function(dt) {
-		//=======prePROCES=======//--vs--//=======EVENTS=======//
-		cameraMoveingObject.updata(touches, main.camera);
-		//==================================================//
-
-
-		//=======PROCES=======//--vs--//=======UPDATA=======//
-		player.instructionUpdata();
 		
 		let layer = map.layers[0];
 		let size = vec2(map.tilewidth, map.tileheight);
+		netmap.tile.set(size);
 		
 		for(let i = 0; i < layer.data.length; i++) {
 			let id = layer.data[i];
@@ -118,16 +106,40 @@ Scene.create('main', function() {
 			
 			
 			let box = new Box({
-				x: i % layer.width * size.x, y: Math.floor(i/layer.width) * size.y,
-				w: size.x, h: size.y
+				x: i % layer.width * size.x,
+				y: Math.floor(i / layer.width) * size.y,
+				w: size.x-1,
+				h: size.y-1
 			});
 			
 			boxes.push(box);
-			
-			player.hasCollide(box);
 		};
 		
-		player.updata(dt);
+		
+		player.on('collide', (dir, a, b) => {
+		//	console.log(dir);
+		});
+	};
+	
+	
+	//===============update===============//
+	this.update = function(dt) {
+		//=======prePROCES=======//--vs--//=======EVENTS=======//
+		cameraMoveingObject.update(touches, main.camera);
+		//==================================================//
+
+
+		//=======PROCES=======//--vs--//=======UPDATE=======//
+		player.instructionUpdate();
+		
+		
+		player.update(dt);
+		
+		for(let i = 0; i < boxes.length; i++) {
+			player.hasCollide(boxes[i]);
+		};
+		
+		player.prevPos.set(player.pos);
 		//==================================================//
 
 
@@ -145,6 +157,7 @@ Scene.create('main', function() {
 		main.fillText(Math.floor(1000/dt), 20, 20);
 	}; //==============================//
 });
+
 
 Scene.run('main');
 

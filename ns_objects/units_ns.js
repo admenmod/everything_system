@@ -76,7 +76,7 @@ let units_ns = new function() {
 				constructor() {
 					this.si = self._systemInterface;
 				}
-				make(action, ...args) {
+				execute(action, ...args) {
 					action = action.toUpperCase();
 				
 					if(action in self.actionFlags) self.actionFlags[action] = true;
@@ -93,9 +93,11 @@ let units_ns = new function() {
 			this._systemInterface._newEventAPI = () => new EventAPI();
 			
 			
-		//	this._iInterval = setInterval(() => this._systemInterface.emit('updata', this._event_api_object), 1000/20);
+		//	this._iInterval = setInterval(() => this._systemInterface.emit('update', this._event_api_object), 1000/20);
 			this.processor.connectToSystem(this._systemInterface);
 		}
+		
+		
 		
 		hasCollide(b) {
 			if(this.isStaticIntersect(b)) {
@@ -107,31 +109,37 @@ let units_ns = new function() {
 					x: this.prevPos.x, w: size.x,
 					y: this.prevPos.y, h: size.y
 				};
-				
-				if(a.x+a.w <= b.x) dir = 'left';
+				//*
+				if(a.x <= b.x-a.w) dir = 'left'
 				if(a.x >= b.x+b.w) dir = 'right';
-				if(a.y+a.h <= b.y) dir = 'top';
+				if(a.y <= b.y-a.h) dir = 'top';
 				if(a.y >= b.y+b.h) dir = 'bottom';
-				
+				//*/
+			/*	
+				if(a.x >= b.x+b.w) dir = 'left';
+				else if(a.x+a.w <= b.x) dir = 'right'
+				else if(a.y >= b.y+b.h) dir = 'top';
+				else if(a.y+a.h <= b.y) dir = 'bottom';
+				*/
 				this.emit('collide', dir, a, b);
 				this.collideHandler(dir, a, b);
 			};
-			
-			this.prevPos.set(this.pos);
 		}
 		collideHandler(dir, a, b) {
+			let c = 0;
+			
 			if(dir === 'left') {
 				this.vel.x = 0;
-				this.pos.x = b.x-a.w;
+				this.pos.x = b.x-a.w+c;
 			} else if(dir === 'right') {
 				this.vel.x = 0;
-				this.pos.x = b.x+b.w;
+				this.pos.x = b.x+b.w-c;
 			} else if(dir === 'top') {
 				this.vel.y = 0;
-				this.pos.y = b.y-a.h;
+				this.pos.y = b.y-a.h+c;
 			} else if(dir === 'bottom') {
 				this.vel.y = 0;
-				this.pos.y = b.y+b.h;
+				this.pos.y = b.y+b.h-c;
 			};
 		}
 		
@@ -163,13 +171,13 @@ let units_ns = new function() {
 			
 		}
 		
-		instructionUpdata() {
+		instructionUpdate() {
 		//	this.instructionLoop.forEach(i => i());
 			
 			this.moveI(this.targets.move);
 			this.attackI(this.targets.attack);
 		}
-		updata(dt) {
+		update(dt) {
 			this.vel.inc(0.97);
 			this.pos.plus(this.vel);
 		}
