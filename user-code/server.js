@@ -1,4 +1,33 @@
+let fs = require('fs');
+let gui = require('gui');
+let radio = require('radio');
 let network = require('network');
+
+
+let seyText = text => gui.sey((ctx, pos) => {
+	ctx.font = '15px Arial';
+	ctx.fillStyle = '#ffffff';
+	ctx.fillText(text, pos.x, pos.y);
+}, 3000);
+
+
+radio.on('detect', (signal, info) => {
+	console.log('server: ', signal);
+	console.log('server:Info ', info);
+//	seyText('[server]detect: '+signal.info.name);
+});
+
+
+setTimeout(() => {
+	radio.emitSignal({
+		verification: key => key === 'dddddd',
+		info: { name: 'server', key: 'dddddd' },
+		data: { key: 'dddddd' }
+	});
+	
+	seyText('server emit');
+}, 5000);
+
 
 /*
 let validateList = ['unit'];
@@ -7,8 +36,7 @@ let reg = new Map();
 let accessPoint = network.enableAccessPoint();
 
 accessPoint.on('connecting', (allow, deny, { name, uuid }) => {
-	reg.set(uuid, name);
-	if(validateList.includes(reg.get(uuid))) allow();
+	allow();
 });
 
 accessPoint.on('connect', connection => {
@@ -27,4 +55,4 @@ accessPoint.on('accept', (data, connection) => {
 	if(data === 'hi') connection.send('drop');
 	if(data === 'drop') connection.close();
 });
-*/
+//*/

@@ -2,11 +2,6 @@
 let global_ns = new function() {
 	cvs.addEventListener('dblclick', e => cvs.requestFullscreen());
 	
-	let environment = this.environment = {
-		radarsSignals: [],
-		accessPointsSignals: []
-	};
-	
 	
 	let CameraMoveingObject = this.CameraMoveingObject = class {
 		constructor(v, maxspeed, minspeed) {
@@ -16,6 +11,7 @@ let global_ns = new function() {
 			this.minspeed = minspeed||0.02;
 			this.touch = null;
 		}
+		
 		update(touch, v) {
 			if(!this.touch) {
 				if(Math.abs(this.cameraSpeed.moduleSq) < this.minspeed) this.cameraSpeed.set(0);

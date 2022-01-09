@@ -1,12 +1,16 @@
 'use strict';
 Scene.create('main', function() {
 	let { netmap, CameraMoveingObject } = global_ns;
+	let { Node, Sprite } = nodes_ns;
+	let { BaseObject, StaticObject, DynamicObject } = units_ns;
 	
 	let cameraMoveingObject = new CameraMoveingObject(main.camera);
 	cvs.on('resize', e => netmap.size.set(cvs.size));
 	
 	
 	let programs = {};
+	
+	let rootnode = new Node({ name: 'root' });
 	
 	let server = null, unit = null, map = null;
 	let player = global_ns.player = null;
@@ -16,7 +20,6 @@ Scene.create('main', function() {
 		1345, 1347, 1351, 1353
 	];
 	
-	let boxes = [];
 	
 	let l = 0, pl = 0;
 	let pos1 = vec2(), pos2 = vec2();
@@ -47,81 +50,40 @@ Scene.create('main', function() {
 			map.draw(ctx);
 		}).then(img => db.map = img);
 	}));
-	
-	
-	class Box {
-		constructor(p = {}) {
-			this.x = p.x||0;
-			this.y = p.y||0;
-			
-			this.w = p.w||10;
-			this.h = p.h||10;
-		}
-		
-		draw(ctx) {
-			ctx.save();
-			ctx.beginPath();
-			ctx.strokeStyle = '#ffff00';
-			ctx.strokeRect(this.x, this.y, this.w, this.h);
-			ctx.restore();
-		}
-	};
-	
-	
+
+
 	//===============init===============//
 	this.init = () => {
-		server = new code_ns.Processor({
-			name: 'server',
-			mainProgram: programs.server
-		});
+		rootnode.scale.set(0.4);
 		
-		unit = new code_ns.Processor({
+		unit = rootnode.appendChild(new DynamicObject({
 			name: 'unit',
-			mainProgram: programs.unit
-		});
-		
-		
-		global_ns.player = player = new units_ns.Unit({
-			posC: cvs.size.div(2),
 			
-			processor: unit,
+			pos: cvs.size.div(2).add(500, 0),
+			
+			main_script: programs.unit,
 			
 			scale: vec2(0.05, 0.05),
 			image: db.ship
-		});
-		player._isRenderBorder = true;
+		}));
 		
+		server = rootnode.appendChild(new StaticObject({
+			name: 'server',
+			
+			pos: cvs.size.div(2).add(100, 1000),
+			
+			main_script: programs.server,
+			
+			scale: vec2(0.05, 0.05),
+			image: db.ship
+		}));
+		//*/
 		
 		server.enable();
 		unit.enable();
-		
-		
-		let layer = map.layers[0];
-		let size = vec2(map.tilewidth, map.tileheight);
-		netmap.tile.set(size);
-		
-		for(let i = 0; i < layer.data.length; i++) {
-			let id = layer.data[i];
-			if(!idBorders.includes(id)) continue;
-			
-			
-			let box = new Box({
-				x: i % layer.width * size.x,
-				y: Math.floor(i / layer.width) * size.y,
-				w: size.x-1,
-				h: size.y-1
-			});
-			
-			boxes.push(box);
-		};
-		
-		
-		player.on('collide', (dir, a, b) => {
-		//	console.log(dir);
-		});
 	};
-	
-	
+
+
 	//===============update===============//
 	this.update = function(dt) {
 		//=======prePROCES=======//--vs--//=======EVENTS=======//
@@ -130,16 +92,7 @@ Scene.create('main', function() {
 
 
 		//=======PROCES=======//--vs--//=======UPDATE=======//
-		player.instructionUpdate();
-		
-		
-		player.update(dt);
-		
-		for(let i = 0; i < boxes.length; i++) {
-			player.hasCollide(boxes[i]);
-		};
-		
-		player.prevPos.set(player.pos);
+		rootnode.update(dt);
 		//==================================================//
 
 
@@ -148,13 +101,14 @@ Scene.create('main', function() {
 		
 		main.drawImage(db.map, map.pos.x, map.pos.y, db.map.width, db.map.height);
 		netmap.draw(main);
-		player.draw(main);
 		
-		for(let i = 0; i < boxes.length; i++) boxes[i].draw(main);
+		rootnode.render(main);
 		
-		main.fillStyle = '#eeeeee';
-		main.font = '15px Arial';
-		main.fillText(Math.floor(1000/dt), 20, 20);
+		for(let i of globalThis.enarr) i(main);
+		
+		main.ctx.fillStyle = '#eeeeee';
+		main.ctx.font = '15px Arial';
+		main.ctx.fillText(Math.floor(1000/dt), 20, 20);
 	}; //==============================//
 });
 

@@ -34,7 +34,7 @@ let MapParser = Object.assign(new EventEmitter(), new function() {
 				};
 				
 				Promise.all(proms).then(data => {
-					console.log(this.tilesets);
+				//	console.log(this.tilesets);
 					
 					this.isLoaded = true;
 					this.emit('load', this);
