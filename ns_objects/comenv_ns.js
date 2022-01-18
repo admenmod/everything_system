@@ -1,8 +1,8 @@
 'use strict';
-let spatialenv_ns = new function() {
+let comenv_ns = new function() {
 	let replaceToN = z => String(z).replace('0.', '');
-	window.getSid = () => Math.random();
-	window.generateID = () => replaceToN(getSid()) +''+ replaceToN(Math.abs(Math.sin(performance.now())));
+	window.getSeed = () => Math.random();
+	window.generateID = () => replaceToN(getSeed()) +''+ replaceToN(Math.abs(Math.sin(performance.now())));
 	
 	
 	class Signal extends EventEmitter {
@@ -10,7 +10,7 @@ let spatialenv_ns = new function() {
 			super();
 			this.uuid = generateID();
 			
-			this.getpos = getpos;
+			this._getpos = getpos;
 			
 			this._info = JSONcopy(p.info);
 			this._data = JSONcopy(p.data);
@@ -63,7 +63,7 @@ let spatialenv_ns = new function() {
 	};
 	
 	
-	let SpatialEnvironment = this.SpatialEnvironment = class extends EventEmitter {
+	let CommunicationEnvironment = this.CommunicationEnvironment = class extends EventEmitter {
 		constructor() {
 			super();
 			
@@ -78,15 +78,15 @@ let spatialenv_ns = new function() {
 			
 			this.emit('push:signal', signal);
 			
-			return () => signal.emit('destroy');
+			return signal;
 		}
 		
-		removeSignal(signal) {
-			let l = this.signals.indexOf(signal);
+		removeSignal(signalUUID) {
+			let l = this.signals.findIndex(i => i.uuid === signalUUID);
 			if(!~l) return;
 			
-			this.signals.splice(l, 1);
-			this.emit('remove:signal', signal);
+			let signal = this.signals.splice(l, 1)[0];
+			this.emit('remove:signal', signal.info, { position: signal._getpos() });
 		}
 		
 		getSignals() { return this.signals.map(i => i); }
@@ -98,6 +98,9 @@ let spatialenv_ns = new function() {
 			super();
 			
 			this.id = generateID();
+			this.isEnabled = false;
+			
+			this.connectionMode = AccessPoint.AD_HOC_MODE;
 			
 			this._ = {};
 			
@@ -107,31 +110,50 @@ let spatialenv_ns = new function() {
 		}
 		
 		enable() {
+		//	let h = signal => this.emit('detect', signal.getPublicObject());
+			
+		//	worldAccessPoint.on('push:signal', h);
+		//	this.once('disable', () => worldAccessPoint.off('push:signal', h));
+			
+			this.isEnabled = true;
 			this.emit('enable');
-			
-			let h = signal => this.emit('detect', signal.getPublicObject());
-			
-			worldAccessPoint.on('push:signal', h);
-			this.once('disable', () => worldAccessPoint.off('push:signal', h));
 		}
 		
 		disable() {
+			this.isEnabled = false;
 			this.emit('disable');
 		}
 		
+		setMode(mode) {
+			if(this.isEnabled) return;
+			if(mode !== AccessPoint.AD_HOC_MODE || mode !== AccessPoint.INFRASTRUCTURE_MODE) {
+				return console.error('invalid mode "'+mode+'"');
+			};
+			
+			this.connectionMode = mode;
+		}
+		
 		pushSignal(signal) {
-			worldAccessPoint.pushSignal(signal);
+			if(!this.isEnabled) return;
+			
+		//	worldAccessPoint.pushSignal(signal);
 		}
 		
 		detectSignals() {
-			return worldAccessPoint.signals.map(i => i.getPublicObject());
+			if(!this.isEnabled) return;
+			
+		//	return worldAccessPoint.signals.map(i => i.getPublicObject());
 		}
+		
+		static AD_HOC_MODE = 'ad-hoc';
+		static INFRASTRUCTURE_MODE = 'infrastructure';
 	};
 	
 	
-	let worldAccessPoint = new SpatialEnvironment();
+	let worldAccessPoint = new CommunicationEnvironment();
 	
-	// fixme: rename AccessPoint to "приемник, радар"
+	
+	
 	(function() {
 		let accessPoint1 = new AccessPoint();
 		let accessPoint2 = new AccessPoint();
@@ -140,23 +162,6 @@ let spatialenv_ns = new function() {
 		accessPoint2.enable();
 		
 		
-		accessPoint1.on('detect', ({ info, getData }) => {
-			console.log(info, accessPoint1.id);
-			console.log(accessPoint1.id === info.id);
-			console.log(getData(info.key+'11'));
-		});
-		
-		
-		accessPoint2.pushSignal({
-			verification: key => key === '3333311',
-			info: {
-				key: '33333',
-				...accessPoint2._.publicInfo
-			},
-			data: {
-				data: 'BIGDATA'
-			}
-		});
 		
 		accessPoint1.disable();
 		accessPoint2.disable();

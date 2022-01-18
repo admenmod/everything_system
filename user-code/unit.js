@@ -3,17 +3,33 @@ let gui = require('gui');
 let radio = require('radio');
 
 
-let seyText = text => gui.sey((ctx, pos) => {
+let seyText = (text, time = 0) => gui.sey((ctx, pos) => {
+	ctx.save();
 	ctx.font = '15px Arial';
-	ctx.fillStyle = '#ffffff';
-	ctx.fillText(text, pos.x, pos.y);
-}, 3000);
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'middle';
+	
+	let m = ctx.measureText(text);
+	let pw = m.width/2 + 10;
+	let ph = 15;
+	
+	ctx.globalAlpha = 0.5;
+	ctx.fillStyle = '#222222';
+	ctx.fillRect(pos.x-pw, pos.y-ph - 20, pw*2, ph*2);
+	ctx.strokeStyle = '#eeaaff';
+	ctx.strokeRect(pos.x-pw, pos.y-ph - 20, pw*2, ph*2);
+	
+	ctx.globalAlpha = 1;
+	ctx.fillStyle = '#eeeeee';
+	ctx.fillText(text, pos.x, pos.y-20);
+	ctx.restore();
+}, time);
 
 
 radio.on('detect', (signal, info) => {
-	console.log('unit: ', signal);
+	console.log('unit: ', signal.info);
 	console.log('unit:Info ', info);
-	seyText('[server]detect: '+signal.info.name);
+	seyText('[unit] detect: '+signal.info.name, 3000);
 });
 
 

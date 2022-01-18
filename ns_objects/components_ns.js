@@ -1,9 +1,9 @@
 'use strict';
 let components_ns = new function() {
 	let { VirtualEnv } = code_ns;
-	let { SpatialEnvironment, AccessPoint } = spatialenv_ns;
+	let { CommunicationEnvironment, AccessPoint } = comenv_ns;
 	
-	let world = new SpatialEnvironment();
+	let world = new CommunicationEnvironment();
 	
 	
 	/*
@@ -106,10 +106,11 @@ let components_ns = new function() {
 			super();
 			
 			this._getpos = super_this._getpos;
-			
-			
+		}
+		
+		enable() {
 			let h_pushSignal = signal => {
-				let distance = this._getpos().getDistance(signal.getpos());
+				let distance = this._getpos().getDistance(signal._getpos());
 				
 				delay(() => this.emit('detect', signal, { distance }), distance);
 			};
@@ -119,15 +120,21 @@ let components_ns = new function() {
 			this.once('disable', () => {
 				world.off('push:signal', h_pushSignal);
 			});
+			
+			this.emit('enable');
 		}
-		
-		enable() { this.emit('enable'); }
 		disable() { this.emit('disable'); }
 		
 		emitSignal(p) {
-			let destroy = world.pushSignal(p, this._getpos);
+			let signal = world.pushSignal(p, this._getpos);
 			
-			this.once('disable', destroy);
+			this.once('disable', signal.emit('destroy'));
+			
+			return signal.uuid;
+		}
+		
+		revokeSignal(signalUUID) {
+			world.removeSignal(signalUUID);
 		}
 		
 		detectSignals() { return world.getSignals(); }
@@ -141,7 +148,9 @@ let components_ns = new function() {
 				dd('enable');
 				dd('disable');
 				dd('emitSignal');
-				dd('detectSignals');
+				dd('revokeSignal');
+				
+				module.detectSignals = (...args) => this.detectSignals().map(i => i.getPublicObject());
 				
 				
 				this.on('enable', (...args) => module.emit('enable', ...args))
@@ -178,6 +187,7 @@ let components_ns = new function() {
 	
 	
 	
+	
 	let NetworkModule = this.NetworkModule = class extends EventEmitter {
 		static NAME = 'network';
 		
@@ -187,43 +197,54 @@ let components_ns = new function() {
 			
 			this._getpos = super_this._getpos;
 			
-			const INFRASTRUCTURE_MODE = 'infrastructure';
-			const AD_HOC_MODE = 'ad-hoc';
+			
+			this.accessPoint = new AccessPoint();
 			
 			this.connectionMode = null;
 			this.status = 0;	// null, connect, distribute (0-2)
 		//	this.connections = new Set();
 			
-		//	this._signal = null;
-		//	this._accessPointObject = null;
+		//	this._signalUUID = null;
 		//	this._connectionObject = null;
 		}
 		
 		enable() {
+			this.isEnabled = true;
 			this.emit('enable');
 		}
-		
 		disable() {
+			this.isEnabled = false;
+			this.disableAccessPoint();
+			
 			this.emit('disable');
 		}
 		
 		enableAccessPoint({ mode }) {
-			if(this.status !== 0) return;
+			if(!this.isEnabled || this.status !== 0) return;
 			this.status = 2;
 			
 			console.log('mode: ', mode);
 			
-			// console.log('создание accessPoint');
-			// let accessPoint = new AccessPoint();
+			this.accessPoint.setMode(mode || AccessPoint.AD_HOC_MODE);
+			this.accessPoint.enable();
+			
+			
+		/*	let radio = this.super_this.modules[RadioModule.NAME];
+			radio.emitSignal({
+				info: {
+					isAccessPoint: true
+				}
+			});
+		});*/
+			
 			
 		//	console.log('создание Signal');
-			
-			
-			return ;
 		}
 		
 		disableAccessPoint() {
+			if(!this.isEnabled) return;
 			
+			this.accessPoint.disable();
 		}
 		
 		/*
@@ -231,16 +252,20 @@ let components_ns = new function() {
 			и на стороне клиента и на стороне сервера
 		*/
 		connect(signal) {
+			if(!this.isEnabled) return;
 			
 			return;
 		}
 		
 		disconnect() {
+			if(!this.isEnabled) return;
 			
 		}
 		
-		detectAccessPoint(findSignal) {
-			return global_ns.worldEnv.signals.accessPoints.filter(i => findSignal({ ...i }));
+		detectAccessPoint() {
+			if(!this.isEnabled) return;
+			
+			return global_ns.worldEnv.signals.filter(i => i.isAccessPoint);
 		}
 		
 		module_exports() {

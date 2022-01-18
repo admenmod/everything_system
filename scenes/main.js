@@ -33,6 +33,7 @@ Scene.create('main', function() {
 		ctx.fillRect(0, 0, 1, 1);
 	}).then(img => db._ = img));
 	
+		
 	this.preload(fetch(location.origin+'/user-code/unit.js')
 		.then(data => data.text())
 		.then(data => programs.unit = data));
@@ -54,12 +55,20 @@ Scene.create('main', function() {
 
 	//===============init===============//
 	this.init = () => {
-		rootnode.scale.set(0.4);
+		rootnode.scale.set(0.5);
+		
+		rootnode.appendChild(new Sprite({
+			name: 'map',
+			
+			scale: vec2().set(2),
+			image: db.map
+		}));
+		
 		
 		unit = rootnode.appendChild(new DynamicObject({
 			name: 'unit',
 			
-			pos: cvs.size.div(2).add(500, 0),
+			pos: cvs.size.div(2).add(-500, 0),
 			
 			main_script: programs.unit,
 			
@@ -70,7 +79,7 @@ Scene.create('main', function() {
 		server = rootnode.appendChild(new StaticObject({
 			name: 'server',
 			
-			pos: cvs.size.div(2).add(100, 1000),
+			pos: cvs.size.div(2).add(-100, -1000),
 			
 			main_script: programs.server,
 			
@@ -99,7 +108,6 @@ Scene.create('main', function() {
 		//==========DRAW==========//--vs--//==========RENDER==========//
 		main.ctx.clearRect(0, 0, cvs.width, cvs.height);
 		
-		main.drawImage(db.map, map.pos.x, map.pos.y, db.map.width, db.map.height);
 		netmap.draw(main);
 		
 		rootnode.render(main);
@@ -108,7 +116,7 @@ Scene.create('main', function() {
 		
 		main.ctx.fillStyle = '#eeeeee';
 		main.ctx.font = '15px Arial';
-		main.ctx.fillText(Math.floor(1000/dt), 20, 20);
+		main.ctx.fillText((1000/dt).toFixed(2), 20, 20);
 	}; //==============================//
 });
 

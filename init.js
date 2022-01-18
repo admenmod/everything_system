@@ -19,7 +19,7 @@ loadScript('ns_objects/code_ns.js');
 
 loadScript('ns_objects/global_ns.js');
 loadScript('ns_objects/nodes_ns.js');
-loadScript('ns_objects/spatialenv_ns.js');
+loadScript('ns_objects/comenv_ns.js');
 loadScript('ns_objects/components_ns.js');
 loadScript('ns_objects/units_ns.js');
 
