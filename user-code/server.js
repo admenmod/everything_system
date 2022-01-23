@@ -6,7 +6,7 @@ let network = require('network');
 
 let seyText = (text, time = 0) => gui.sey((ctx, pos) => {
 	ctx.save();
-	ctx.font = '15px Arial';
+	ctx.font = '15px arkhip, monospace';
 	ctx.textAlign = 'center';
 	ctx.textBaseline = 'middle';
 	
@@ -35,8 +35,8 @@ radio.on('detect', (signal, info) => {
 
 
 setTimeout(() => {
-	let idd = radio.emitSignal({
-		verification: key => key === 'dddddd',
+	let signalId = radio.emitSignal({
+		verify: key => key === 'dddddd',
 		info: { name: 'server', key: 'dddddd' },
 		data: { key: 'важная инфа' }
 	});
@@ -47,11 +47,11 @@ setTimeout(() => {
 	setTimeout(() => {
 		console.log(radio.detectSignals());
 		
-		radio.revokeSignal(idd);
+		radio.revokeSignal(signalId);
 		
 		console.log(radio.detectSignals());
 		
-		seyText('server revoke', 3000);
+		seyText('server revoke', 2000);
 	}, 4000);
 }, 3000);
 

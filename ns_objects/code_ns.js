@@ -25,6 +25,10 @@ let code_ns = new function() {
 	const MODE_TREE    = 0x000002;
 	const MODE_SYMLINK = 0x000003;
 	
+	const MODE_EXEC    = 0x000010;
+	const MODE_ROOT    = 0x000020;
+	
+	
 	const TYPE_BLOB = 'blob';
 	const TYPE_TREE = 'tree';
 	
@@ -36,6 +40,90 @@ let code_ns = new function() {
 	
 	let generateID = () => Number(String(Math.random()).replace('0.', '')).toString(16).padStart(14, '0');
 	
+	
+	let Path = class {
+		static _cache = [];
+		static dirExp = /\/+/;
+		static fileExp = /\.(?!.*\.)/;
+		
+		static toSource(path) {
+			return typeof path === 'string' ? path : path.join('/');
+		}
+		
+		static path(src) {
+			if(typeof src !== 'string') return src;
+			
+			let data = src === '/' ? [''] : src.split(this.dirExp);
+			data.src = src;
+			
+			return data;
+		}
+		
+		static absolute(src) {
+			let path = this.path(src);
+			
+			let absolute = [];
+			for(let i of path) {
+				if(i === '..') absolute.pop();
+				else if(i === '.') continue;
+				else absolute.push(i);
+			};
+			
+			return absolute;
+		}
+		
+		static file(src) {
+			let data = {};
+			
+			let path = this.path(src);
+			data.filename = path[path.length-1];
+			
+			let [name, exp] = data.filename.split(this.fileExp);
+			data.name = name;
+			data.exp = exp;
+			
+			return data;
+		}
+		
+		static relative(src, dir = '') {
+			src = this.path(src);
+			dir = this.path(dir);
+			
+			
+			let isAbsolute = src[0] === '';
+			let path = isAbsolute ? [...src] : [...dir, ...src];
+			let isRelative = path[0] === '.' || path[0] === '..';
+			
+			
+			let data = this.absolute(path);
+			
+			data.src = src.src;
+			data.dir = dir.src;
+			
+			data.isRelative = isRelative;
+			data.isAbsolute = isAbsolute;
+			data.isDefault = data.isPassive = !(isAbsolute || isRelative);
+			
+			data.path = path;
+			
+			data.absolute = this.toSource(data);
+			data.normalize = this.toSource(data.path);
+			
+			// not forget: host, port, protocol
+			return data;
+		}
+	};
+	
+	/*
+//	console.log(Path.absolute('root/dir/../file.js'));
+	
+	console.log(Path.file('../../file.sub..exe'));
+	console.log(Path.relative('../../file.exe', '/root/dir'));
+	console.log(Path.relative('root/dir/../file.exe'));
+	
+	
+	console.log('//////////////////////////');
+	*/
 	
 	let FileSystem = class extends EventEmitter {
 		constructor(id) {
@@ -77,13 +165,29 @@ let code_ns = new function() {
 		
 		getDirFiles(id) { return this._storage[id].split('\n').filter(Boolean); }
 		
+		getDataFile(src) {
+			let path = Path.absolute(src);
+			let filePath = path.splice(-1, 1)[0];
+			let dirPath = path.join('/');
+			
+			let dirId = this.getIdByPath(dirPath);
+			let fileId = this.getIdByPath(filePath);
+			
+			let data = null;
+			let isFound = this.getDirFiles(dirId).find(i => {
+				data = i.split(' ');
+				return data[INDEX_FILENAME] === filename;
+			});
+			
+			return isFound ? data : null;
+		}
+		
 		getIdByPath(src) {
 			if(src === '/') return this.rootId;
 			
 			let id = '';
 			
-			let path = FileSystem.parsePath(src).path;
-			
+			let path = Path.absolute(src).filter(Boolean);
 			
 			let prevDirId = this.rootId;
 			let dirId = this.rootId;
@@ -114,25 +218,25 @@ let code_ns = new function() {
 		}
 		
 		removeFileSync(src, error = console.error) {
-			let parentPath = FileSystem.parsePath(src).path.slice(0, -1).join('/');
+			let dirPath = Path.toSource(Path.absolute(src).path.slice(0, -1));
 			
 			let fileId = this.getIdByPath(src);
-			let parentId = this.getIdByPath(parentPath);
+			let dirId = this.getIdByPath(dirPath);
 			
-			if(!fileId) return void error(Error(`path is empty "${fileId}"`));
+			if(!fileId) return void error(Error(`path is empty "${Path.toSource(src)}"`));
 			
 			
-			let files = this.getDirFiles(parentId);
+			let files = this.getDirFiles(dirId);
 			
 			let l = files.findIndex(i => {
 				let data = i.split(' ');
 				return data[INDEX_ID] === fileId && data[INDEX_TYPE] === TYPE_BLOB;
 			});
 			
-			if(!~l) return void error(Error(`пока что нельзя ужалять директории`));
+			if(!~l) return void error(Error(`пока что нельзя удалять директории`));
 			files.splice(l, 1);
 			
-			this._storage[parentId] = files.join('\n');
+			this._storage[dirId] = files.join('\n');
 			delete this._storage[fileId];
 			
 			return true;
@@ -150,7 +254,7 @@ let code_ns = new function() {
 		readFileSync(src, error = console.error) {
 			let fileId = this.getIdByPath(src);
 			
-			if(!fileId) return void error(Error(`file not found "${src}"`));
+			if(!fileId) return void error(Error(`file not found "${Path.toSource(src)}"`));
 			return this._storage[fileId];
 		}
 		
@@ -163,10 +267,10 @@ let code_ns = new function() {
 			
 			let targetId = '';
 			
-			let path = FileSystem.parsePath(src).path;
+			let path = Path.absolute(src).filter(Boolean);
 			let filename = path.splice(-1, 1)[0];
 			
-			if(!filename) return void error(Error(`invalid path "${src}"`));
+			if(!filename) return void error(Error(`invalid path "${Path.toSource(src)}"`));
 			
 			let prevDirId = this.rootId;
 			let dirId = this.rootId;
@@ -208,6 +312,35 @@ let code_ns = new function() {
 			return new Promise((res, rej) => res(this.writeFileSync(src, content, rej)));
 		}
 		
+		appendFileSync(src, content = '', error = console.error) {
+			if(typeof content !== 'string') return void error(Error('content is not a string'));
+			
+			let dirPath = Path.toSource(Path.absolute(src).slice(0, -1));
+			
+			let fileId = this.getIdByPath(src);
+			let dirId = this.getIdByPath(dirPath);
+			
+			if(!fileId) return void error(Error(`path is empty "${Path.toSource(src)}"`));
+			
+			
+			let files = this.getDirFiles(dirId);
+			let isFound = files.find(i => {
+				let data = i.split(' ');
+				return data[INDEX_ID] === fileId && data[INDEX_TYPE] === TYPE_BLOB;
+			});
+			
+			if(!isFound) error(Error(`path points to a tree "${Path.toSource(src)}"`));
+			
+			this._storage[fileId] += content;
+			
+			return true;
+		}
+		
+		appendFile(src, content = '') {
+			return new Promise((res, rej) => res(this.appendFileSync(src, content, rej)));
+		}
+		
+		
 		readDirSync(src, error = console.error) {
 			let res = [];
 			
@@ -235,118 +368,199 @@ let code_ns = new function() {
 			return `${mode} ${type} ${id} ${filename}\n`;
 		}
 		
-		static parsePath = src => {
-			let data = {};
-			
-			data.src = src;
-			data.path = src.split(/\//).filter(Boolean);
-		//	data.path = src.split(/\/(?!\/)[^\/]/).filter(Boolean);
-		//	console.log(src, data.path);
-			
-			
-		//	data.root = path[0]; // host port protocol
-			
-		//	data.isRoot = path[0] === '/';
-			
-			return data;
-		};
-		
 		static _cacheStorage = {};
 	};
-	
 	
 	/*
 	let fs = new FileSystem('test_fs');
 	
 	fs.writeFileSync('root/dir/test.txt', 'content kelsldllelsd ekekemd dekms ee');
-	let fff = fs.readFileSync('root/dir/test.txt');
 	
 	console.log(fs._storage);
-	console.log(fff);
+	
+	console.log(fs.readFileSync('root/dir/test.txt'));
+	console.log(fs.appendFileSync('root/dir/test.txt', 'Addeional 929393'));
+	console.log(fs.appendFileSync('root/dir/test.txt', 'Addeional 929393'));
+	console.log(fs.readFileSync('root/dir/test.txt'));
 	
 	console.log('directory', fs.readDirSync('root'));
 	
 	console.log(JSONcopy(fs._storage));
 	console.log(fs.removeFileSync('root/dir/test.txt'));
 	console.log(JSONcopy(fs._storage));
+	//*/
+	
+	
+	
+	let NameSpace = function(namespace = null) {
+		return Object.create(namespace);
+	};
+	
+	
+	/*
+		namespace, fs, modules;
+		
+		process -> (namespace);
+		require -> (fs, modules);
+		
+		api -> (
+			process -> namespace,
+			require -> fs, modules
+		);
+		
+	----------------------------------------------
+		VirtulaEnv {
+			this = { namespace, fs, modules };
+			
+			this -> (namespace, require -> (fs, modules)) => process {
+				api
+			} -> (api, code) => execute {
+				
+			};
+		}
 	*/
 	
 	
-	
-	let NameSpace = class extends EventEmitter {
-		constructor() {
-			super();
-		}
-	};
-	
-	
 	let VirtualEnv = this.VirtualEnv = class extends EventEmitter {
-		constructor(fs_id = 'fs_storage') {
+		constructor(fsId = 'fs_storage', p = {}) {
 			super();
 			
-			let namespace = this.namespace = new NameSpace();
-			namespace.PATH = '/';
+			this.namespace = new NameSpace();
+			this.namespace.PATH = '/';
 			
-			let fs = this.fs = new FileSystem(fs_id);
-			fs.on('changedir', path => namespace.PATH = path);
+			this.fs = new FileSystem(fsId);
+			this.on('changedir', (next, prev) => this.namespace.PATH = next);
 			
+			this.debugger = { console };
+			
+			this.coreModules = {};
 			this.globalModules = {};
-			this.createModule('fs', global => ({ exports: fs, filename: 'fs' }));
+			this.nativeModules = {};
+			
+			this._appendModule('fs', global => ({ exports: this.fs, filename: 'fs' }), 'core');
+			this._appendModule('path', global => ({ exports: Path, filename: 'path' }), 'core');
 		}
 		
-		createModule(name, module) {
-			return this.globalModules[name] = module;
+		_appendModule(name, module, type) {
+			return this[type+'Modules'][name] = module;
+		}
+		
+		appendModule(name, module) { return this._appendModule(name, module, 'native'); }
+		
+		hasModule(path) {
+			return Boolean(this.coreModules[path.src] || this.globalModules[path.src] || this.nativeModules[path.src]);
+		}
+		
+		getModule(path) {
+			return this.coreModules[path.src] || this.globalModules[path.src] || this.nativeModules[path.src];
 		}
 		
 		createProcess() {
-			let moduleCache = [];
+			let namespace = new NameSpace(this.namespace);
+			let process = { env: namespace };
 			
-			let runScript = filepath => {
-				global.__proto__ = {
-					module: {
-						exports: {},
-						filename: filepath
-					}
+			
+			let require = src => {
+				let module = null;
+				let path = Path.relative(src, this.namespace.PATH);
+				src = path.absolute;
+				
+				if(src in require.cache) module = require.cache[src];
+				else if(this.hasModule(path)) module = this.getModule(path)(api);
+				else if(this.fs.hasFileSync(src)) {
+					module = execute(this.fs.readFileSync(src), path);
 				};
 				
-				codeShell(this.fs.readFileSync(filepath), global, { source: filepath }).call({});
+				if(!module) this.debugger.console.error(Error(`module "${path.src}" not found`));
+				require.cache[src] = module;
 				
-				return global.module;
+				return module.exports || module;
+			};
+			require.cache = null;
+			
+			
+			let api = {
+				require, process,
+				
+				...BASE_API,
+				
+				console: this.debugger.console
+			};
+			Object.defineProperty(api, 'global', { value: api });
+			
+			
+			let execute = (code, path) => {
+				let filepath = path.absolute;
+				let { filename, exp } = Path.file(path);
+				
+				
+				if(exp === 'js') {
+					require.cache = {};
+				
+					api.module = {
+						exports: {},
+						filename
+					};
+					
+					codeShell(code, api, { source: filepath }).call(api);
+					
+					return api.module;
+				} else if(exp === 'json') {
+					return JSON.parse(code);
+				} else return code;
 			};
 			
 			
-			let process = {
-				env: { ...this.namespace }
+			return src => {
+				let path = Path.relative(src, this.namespace.PATH);
+				execute(this.fs.readFileSync(path), path);
 			};
+		}
+		
+		
+		cd(path) {
+			let prev = this.namespace.PATH;
+			let next = Path.relative(path, prev).absolute;
 			
-			let require = name => {
-				let module = null;
-				
-				if(name in moduleCache) module = moduleCache[name];
-				else if(name in this.globalModules) module = this.globalModules[name](global);
-				else if(this.fs.hasFileSync(name)) module = runScript(name);
-				
-				if(!module?.exports) throw Error('module "' + name + '" is not found');
-				
-				moduleCache[name] = module;
-				return module.exports;
-			};
-			
-			
-			let global = {
-				require,
-				process,
-				
-				...BASE_API
-			};
-			global.global = global;
-			
-			
-			return runScript;
+			this.emit('changedir', next, prev);
 		}
 		
 		run(filepath) {
-			this.createProcess()(filepath);
+			let process = this.createProcess();
+			
+			process(filepath);
 		}
 	};
+	
+	
+	/*
+		VirEnv (fs_id):
+			fs(fs_id)
+			namespace
+			globalModules: => create
+		
+		process (fs, namespace, globalModules):
+			api: object {
+				require => get module
+				process: process object
+			}
+		
+		run_file (code, api, filepath):
+			execute file
+	*/
+	
+	/*
+	let virenv = new VirtualEnv('ve_test');
+	
+//	virenv.createExpansion('json', (code,, data) => JSON.parse(code));
+	virenv.fs.writeFileSync('dd.json', '{ "fd": 30 }');
+	
+	virenv.fs.writeFileSync('main.js', `
+	let dd = require('dd.json');
+	
+	console.log(dd);
+	`);
+	
+	virenv.run('main.js');
+	*/
 };

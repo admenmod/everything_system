@@ -14,9 +14,9 @@ let comenv_ns = new function() {
 			
 			this._info = JSONcopy(p.info);
 			this._data = JSONcopy(p.data);
-			this.verification = p.verification || (key => key);
+			this.verify = p.verify || (key => key);
 			
-			this.getData = (...args) => this.verification(...args) && this.data;
+			this.getData = (...args) => this.verify(...args) && this.data;
 		}
 		
 		get info() { return JSONcopy(this._info); }

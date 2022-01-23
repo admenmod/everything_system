@@ -6,21 +6,11 @@ let components_ns = new function() {
 	let world = new CommunicationEnvironment();
 	
 	
-	/*
-		создается:
-			юнит
-			процессор
-			модульи
-			
-		инициализируется:
-			процесор
-			модули
-	*/
-	
 	let Processor = this.Processor = class extends EventEmitter {
-		constructor(p = {}) {
+		constructor(super_this, p = {}) {
 			super();
 			this.uuid = generateID();
+			this.isEnabled = false;
 			
 			this.virenv = new VirtualEnv(`fs_storage[uuid:${this.uuid}]`);
 			this.virenv.namespace.UUID = this.uuid;
@@ -28,47 +18,67 @@ let components_ns = new function() {
 			this.virenv.fs.writeFileSync('main.js', p.main_script);
 			
 			
-			this._getpos = p.getpos;
+			this._getpos = () => super_this.globalPosition;
 			
 			this.modules = {};
-			this.connectModule(GUIModule);
-			this.connectModule(RadioModule);
-			this.connectModule(NetworkModule);
+			this.connectModule(GUIModule, super_this);
+			this.connectModule(RadioModule, super_this);
+			this.connectModule(NetworkModule, super_this);
 		}
 		
-		connectModule(Module) {
-			this.modules[Module.NAME] = new Module(this);
-			this.virenv.createModule(Module.NAME, this.modules[Module.NAME].module_exports());
-		//	this.virenv.fs.writeFileSync('system/network', );
+		connectModule(Module, super_this) {
+			this.modules[Module.NAME] = new Module(super_this);
+			this.virenv.appendModule(Module.NAME, this.modules[Module.NAME].module_exports());
 		}
 		
 		enable() {
+			if(this.isEnabled) return;
+			
 			for(let i in this.modules) this.modules[i].enable();
 			
+			this.isEnabled = false;
 			this.virenv.run('main.js');
 			this.emit('enable');
 		}
 		
 		disable() {
+			if(!this.isEnabled) return;
+			
+			this.isEnabled = false;
 			this.emit('disable');
 		}
 	};
 	
+	
+	/*
+		структура модуля
+		
+		имя -> путь файла
+		способ получения api
+		модули / свойства
+	*/
 	
 	let GUIModule = this.GUIModule = class extends EventEmitter {
 		static NAME = 'gui';
 		
 		constructor(super_this) {
 			super();
+			this.isEnabled = false;
 			
-			this._getpos = super_this._getpos;
+			this._getpos = () => super_this.globalPos;
 		}
 		
 		enable() {
+			if(this.isEnabled) return;
+			
+			this.isEnabled = true;
 			this.emit('enable');
 		}
 		
 		disable() {
+			if(!this.isEnabled) return;
+			
+			this.isEnabled = false;
 			this.emit('disable');
 		}
 		
@@ -90,7 +100,7 @@ let components_ns = new function() {
 					}, time);
 				};
 				
-				return { exports: module, filename: 'gui' };
+				return { exports: module, filename: GUIModule.NAME };
 			};
 		}
 	};
@@ -104,15 +114,38 @@ let components_ns = new function() {
 		
 		constructor(super_this) {
 			super();
+			this.isEnabled = false;
 			
-			this._getpos = super_this._getpos;
+			this._availableSignals = [];
+			
+			this._getpos = () => super_this.globalPos;
+			
+			this.config = Object.assign({
+				radius: 0
+			}, super_this.modulesInfo['radio'] || {});
 		}
 		
+		get coverageRadius() { return this.config.radius; }
+		
+		
 		enable() {
+			if(this.isEnabled) return;
+			
+			/*
 			let h_pushSignal = signal => {
+				// fixme: неучитывается движение, подумать надресурсами для вычисления октуального состаяния
 				let distance = this._getpos().getDistance(signal._getpos());
 				
-				delay(() => this.emit('detect', signal, { distance }), distance);
+				if(distance > this.coverageRadius) return;
+				
+				let info = {
+					distance
+				};
+				
+				this._availableSignals[signal.uuid];
+				signal.once('destroy', () => delete this._availableSignals[signal.uuid]);
+				
+				delay(() => this.emit('detect', signal, info), distance);
 			};
 			
 			world.on('push:signal', h_pushSignal);
@@ -120,12 +153,22 @@ let components_ns = new function() {
 			this.once('disable', () => {
 				world.off('push:signal', h_pushSignal);
 			});
+			//*/
 			
+			this.isEnabled = true;
 			this.emit('enable');
 		}
-		disable() { this.emit('disable'); }
+		
+		disable() {
+			if(!this.isEnabled) return;
+			
+			this.isEnabled = false;
+			this.emit('disable');
+		}
 		
 		emitSignal(p) {
+			if(!this.isEnabled) return;
+			
 			let signal = world.pushSignal(p, this._getpos);
 			
 			this.once('disable', signal.emit('destroy'));
@@ -134,32 +177,41 @@ let components_ns = new function() {
 		}
 		
 		revokeSignal(signalUUID) {
+			if(!this.isEnabled) return;
+			
 			world.removeSignal(signalUUID);
 		}
 		
-		detectSignals() { return world.getSignals(); }
+	//	мысль вынести логику проверки в таймауте получать детект
+		detectSignals() {
+			if(!this.isEnabled) return;
+			
+			return world.signals.filter(signal => {
+				let distance = signal._getpos().getDistance(this._getpos());
+				return distance < this.coverageRadius;
+			});
+		}
 		
 		module_exports() {
 			return global => {
 				let module = new EventEmitter();
 				
-				let dd = (name, a) => module[name] = (...args) => this[a||name](...args);
+				module.enable = (...args) => this.enable(...args);
+				module.disable = (...args) => this.disable(...args);
 				
-				dd('enable');
-				dd('disable');
-				dd('emitSignal');
-				dd('revokeSignal');
+				module.emitSignal = (...args) => this.emitSignal(...args);
+				module.revokeSignal = (...args) => this.revokeSignal(...args);
 				
-				module.detectSignals = (...args) => this.detectSignals().map(i => i.getPublicObject());
+				module.detectSignals = (...args) => this.detectSignals().map(signal => signal.getPublicObject());
 				
 				
 				this.on('enable', (...args) => module.emit('enable', ...args))
 				this.on('disable', (...args) => module.emit('disable', ...args))
 				
-				this.on('detect', (signal, ...args) => module.emit('detect', signal.getPublicObject(), ...args));
+			//	this.on('detect', (signal, ...args) => module.emit('detect', signal.getPublicObject(), ...args));
 				
 				
-				return { exports: module, filename: 'radio' };
+				return { exports: module, filename: RadioModule.NAME };
 			};
 		}
 	};
@@ -174,7 +226,7 @@ let components_ns = new function() {
 		rad1.emitSignal({
 			info: { name: 'main_server', isServer: true, public_key: '444444' },
 			data: { accessPoints_id: 112222 },
-			verification: key => key === '444444'
+			verify: key => key === '444444'
 		});
 		
 		let signal = rad2.detectSignals().find(({ info }) => info.isServer);
@@ -195,7 +247,7 @@ let components_ns = new function() {
 			super();
 			this.uuid = generateID();
 			
-			this._getpos = super_this._getpos;
+			this._getpos = () => super_this.globalPos;
 			
 			
 			this.accessPoint = new AccessPoint();
@@ -212,6 +264,7 @@ let components_ns = new function() {
 			this.isEnabled = true;
 			this.emit('enable');
 		}
+		
 		disable() {
 			this.isEnabled = false;
 			this.disableAccessPoint();

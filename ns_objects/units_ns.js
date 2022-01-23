@@ -1,37 +1,39 @@
 'use strict';
 let units_ns = new function() {
 	let { Sprite } = nodes_ns;
-	let { Processor } = components_ns;
+	let { Processor, RadioModule, NetworkModule } = components_ns;
 	
 	
 	let BaseObject = this.BaseObject = class extends Sprite {
 		constructor(p = {}) {
 			super(p);
-		//	let self = this;
-			
 		//	this.prevPos = this.pos.buf();
 		//	this.maxSpeed = p.maxSpeed||0.02;
 			
 		//	this.instructionLoop = [];
 			
-			this.processor = new Processor({
-				getpos: () => this.globalPos,
+			this.modulesInfo = {
+				[RadioModule.NAME]: {
+					radius: 1000
+				}
+			};
+			
+			this.processor = new Processor(this, {
 				main_script: p.main_script
 			});
 			
 			this.modules = this.processor.modules;
 			
-			this.attachModule(components_ns.RadioModule);
-			this.attachModule(components_ns.NetworkModule);
-		//	this._iInterval = setInterval(() => this._systemInterface.emit('update', this._event_api_object), 1000/20);
+			this.attachModule(RadioModule);
+			this.attachModule(NetworkModule);
 		}
 		
 	//	destroy() {
-	//		clearInterval(this._iInterval);
+	//		...
 	//	}
 		
 		attachModule(Module) {
-			this.processor.connectModule(Module);
+			this.processor.connectModule(Module, this);
 		}
 		
 		draw(ctx, pos = this.globalPos) {
@@ -48,21 +50,44 @@ let units_ns = new function() {
 	};
 	
 	
+	let StaticObject = this.StaticObject = class extends BaseObject {
+		constructor(p = {}) {
+			super(p);
+		}
+	};
+	
+	
+	let DynamicObject = this.DynamicObject = class extends BaseObject {
+		constructor(p = {}) {
+			super(p);
+			
+			this.vel = vec2();
+		}
+		
+		update(dt) {
+			this.vel.inc(0.97);
+			this.pos.add(this.vel);
+		}
+	};
+	
+	
 	BaseObject.SCIModule = class {
 		constructor(unit) {
 			this.unit = unit;
 			
 			this.gflags = 0;
 			this.flags = {
-				MOVE: 0b01,
-				ATTACK: 0b10
+				MOVE:   0b00000001,
+				ATTACK: 0b00000010
 			};
 			
 			this.movementTarget = vec2();
 		}
 		
+		
+		
 		module_export() {
-			return () => {
+			return global => {
 				let module = new EventEmitter();
 				
 				let setHandlers = (obj, prop, ters) => {
@@ -93,27 +118,6 @@ let units_ns = new function() {
 				
 				return { exports: module, filename: 'sci' };
 			};
-		}
-	};
-	
-	
-	let StaticObject = this.StaticObject = class extends BaseObject {
-		constructor(p = {}) {
-			super(p);
-		}
-	};
-	
-	
-	let DynamicObject = this.DynamicObject = class extends BaseObject {
-		constructor(p = {}) {
-			super(p);
-			
-			this.vel = vec2();
-		}
-		
-		update(dt) {
-			this.vel.inc(0.97);
-			this.pos.plus(this.vel);
 		}
 	};
 	

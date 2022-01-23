@@ -33,15 +33,15 @@ Scene.create('main', function() {
 		ctx.fillRect(0, 0, 1, 1);
 	}).then(img => db._ = img));
 	
-		
-	this.preload(fetch(location.origin+'/user-code/unit.js')
+	
+	let loadUserCode = name => fetch(`${location.origin}/user-code/${name}.js`)
 		.then(data => data.text())
-		.then(data => programs.unit = data));
-		
-	this.preload(fetch(location.origin+'/user-code/server.js')
-		.then(data => data.text())
-		.then(data => programs.server = data));
-		
+		.then(data => programs[name] = data);
+	
+	this.preload(loadUserCode('unit'));
+	this.preload(loadUserCode('server'));
+	
+	
 	this.preload(MapParser.loadMap('testmap.json', './map/').then(data => {
 		global_ns.map = map = data;
 		
@@ -79,7 +79,7 @@ Scene.create('main', function() {
 		server = rootnode.appendChild(new StaticObject({
 			name: 'server',
 			
-			pos: cvs.size.div(2).add(-100, -1000),
+			pos: cvs.size.div(2).add(-100, -500),
 			
 			main_script: programs.server,
 			
@@ -90,6 +90,9 @@ Scene.create('main', function() {
 		
 		server.enable();
 		unit.enable();
+		
+		
+		main.camera.set(rootnode.getChild('map').globalPos.sub(cvs.size.div(2)));
 	};
 
 
@@ -128,8 +131,6 @@ Scene.run('main');
 		netmap.tile.set(20);
 		
 		let scale = vec2(1, 1);
-		
-		
 		
 		
 		

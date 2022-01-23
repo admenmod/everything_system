@@ -5,7 +5,7 @@ let radio = require('radio');
 
 let seyText = (text, time = 0) => gui.sey((ctx, pos) => {
 	ctx.save();
-	ctx.font = '15px Arial';
+	ctx.font = '15px arkhip, monospace';
 	ctx.textAlign = 'center';
 	ctx.textBaseline = 'middle';
 	
@@ -26,10 +26,11 @@ let seyText = (text, time = 0) => gui.sey((ctx, pos) => {
 }, time);
 
 
+
 radio.on('detect', (signal, info) => {
 	console.log('unit: ', signal.info);
 	console.log('unit:Info ', info);
-	seyText('[unit] detect: '+signal.info.name, 3000);
+	seyText('unit detect: '+signal.info.name, 3000);
 });
 
 
