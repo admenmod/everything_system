@@ -131,7 +131,7 @@ let components_ns = new function() {
 		enable() {
 			if(this.isEnabled) return;
 			
-			/*
+			//*
 			let h_pushSignal = signal => {
 				// fixme: неучитывается движение, подумать надресурсами для вычисления октуального состаяния
 				let distance = this._getpos().getDistance(signal._getpos());
@@ -208,7 +208,7 @@ let components_ns = new function() {
 				this.on('enable', (...args) => module.emit('enable', ...args))
 				this.on('disable', (...args) => module.emit('disable', ...args))
 				
-			//	this.on('detect', (signal, ...args) => module.emit('detect', signal.getPublicObject(), ...args));
+				this.on('detect', (signal, ...args) => module.emit('detect', signal.getPublicObject(), ...args));
 				
 				
 				return { exports: module, filename: RadioModule.NAME };

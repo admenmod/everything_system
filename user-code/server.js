@@ -45,16 +45,17 @@ setTimeout(() => {
 	
 	
 	setTimeout(() => {
-		console.log(radio.detectSignals());
+		console.log('signals: ', radio.detectSignals());
 		
 		radio.revokeSignal(signalId);
 		
-		console.log(radio.detectSignals());
+		console.log('signals: ', radio.detectSignals());
 		
 		seyText('server revoke', 2000);
 	}, 4000);
 }, 3000);
 
+seyText('server', 2000);
 
 
 

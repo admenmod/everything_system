@@ -33,7 +33,7 @@ radio.on('detect', (signal, info) => {
 	seyText('unit detect: '+signal.info.name, 3000);
 });
 
-
+seyText('unit', 2000);
 
 /*
 let network = require('network');

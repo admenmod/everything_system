@@ -1,5 +1,14 @@
 'use strict';
-let code_ns = new function() {
+let fs = require('fs');
+
+let {
+	codeShell, createPrivileges, random, JSONcopy,
+	EventEmitter, Scene, Child,
+	Vector2, vec2, VectorN, vecN
+} = globalThis.ver;
+
+
+let code_ns = globalThis.code_ns = new function() {
 	const BASE_API = {
 		Vector2, vec2, VectorN, vecN, EventEmitter, random, JSONcopy,
 		
@@ -18,7 +27,6 @@ let code_ns = new function() {
 			res(cb(...args));
 		}, time);
 	});
-	window.delay = delay;
 	
 	
 	const MODE_BLOB    = 0x000001;
@@ -125,6 +133,9 @@ let code_ns = new function() {
 	console.log('//////////////////////////');
 	*/
 	
+	
+	const SAVE_STORAGE_DIR = 'fs-data/';
+	
 	let FileSystem = class extends EventEmitter {
 		constructor(id) {
 			super();
@@ -138,9 +149,7 @@ let code_ns = new function() {
 			
 			if(FileSystem._cacheStorage[this.id]) {
 				storage = FileSystem._cacheStorage[this.id];
-			} else if(storage = window.localStorage.getItem(this.id)) {
-				storage = JSON.parse(storage);
-			} else {
+			} else if(storage = this.getStorage()) {} else {
 				storage = {};
 				storage[this.rootId] = ``;
 			};
@@ -149,18 +158,24 @@ let code_ns = new function() {
 			
 			
 			if(!FileSystem._cacheStorage[this.id]) {
-				window.addEventListener('beforeunload', e => {
-					window.localStorage.setItem(this.id, JSON.stringify(this._storage));
-				});
-				
 				FileSystem._cacheStorage[this.id] = this._storage;
 			};
 		}
 		
 		get id() { return this._id; }
 		
-		getJSONtoPath(src) {
+		getStorage() {
+			let storage = null;
 			
+			if(fs.existsSync(SAVE_STORAGE_DIR+this.id)) {
+				storage = JSON.parse(fs.readFileSync(SAVE_STORAGE_DIR+this.id, console.error));
+			};
+			
+			return storage;
+		}
+		
+		setStorage() {
+			fs.writeFileSync(SAVE_STORAGE_DIR+this.id, JSON.stringify(this._storage));
 		}
 		
 		getDirFiles(id) { return this._storage[id].split('\n').filter(Boolean); }
@@ -455,7 +470,7 @@ let code_ns = new function() {
 			return this.coreModules[path.src] || this.globalModules[path.src] || this.nativeModules[path.src];
 		}
 		
-		createProcess(additionalApi = {}) {
+		createProcess(additionalApi) {
 			let namespace = new NameSpace(this.namespace);
 			let process = { env: namespace };
 			
@@ -485,6 +500,7 @@ let code_ns = new function() {
 				require, process,
 				
 				...BASE_API,
+				
 				console: this.debugger.console
 			};
 			Object.defineProperty(api, 'global', { value: api });
@@ -493,6 +509,7 @@ let code_ns = new function() {
 			let execute = (code, path) => {
 				let filepath = path.absolute;
 				let { filename, exp } = Path.file(path);
+				
 				
 				if(exp === 'js') {
 					api.require.cache = {};
@@ -505,9 +522,9 @@ let code_ns = new function() {
 					codeShell(code, api, { source: filepath }).call(api);
 					
 					return api.module;
-				} else if(exp === 'json') return JSON.parse(code);
-				
-				return code;
+				} else if(exp === 'json') {
+					return JSON.parse(code);
+				} else return code;
 			};
 			
 			
@@ -517,13 +534,10 @@ let code_ns = new function() {
 		cmd(code) {
 			if(!this.cmdProcess) this.cmdProcess = this.createProcess({
 				fs: this.fs,
-				path: Path,
-				
-				cd: (...args) => this.cd(...args),
-				run: (...args) => this.run(...args)
+				path: Path
 			});
 			
-			this.cmdProcess(code, Path.absolute('/console.js'));
+			this.cmdProcess(code, Path.absolute('/cmd.js'));
 		}
 		
 		cd(path) {
